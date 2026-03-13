@@ -9,7 +9,10 @@ use test_common::{RpcContext, SimdTest, TestOutcome};
 include!(concat!(env!("OUT_DIR"), "/test_registry.rs"));
 
 #[derive(Parser)]
-#[command(name = "simd-checker", about = "Verify SIMD feature activations on Solana networks")]
+#[command(
+    name = "simd-checker",
+    about = "Verify SIMD feature activations on Solana networks"
+)]
 struct Cli {
     /// Filter tests by name or SIMD number
     #[arg(long)]
@@ -65,6 +68,29 @@ fn resolve_keypair(keypair_arg: &Option<String>, network: &str) -> Result<Keypai
     }
 }
 
+fn load_or_generate_program_keypair(path: &str) -> Result<Keypair> {
+    if let Ok(data) = std::fs::read_to_string(path) {
+        let bytes: Vec<u8> = serde_json::from_str(&data)?;
+        let secret: [u8; 32] = bytes[..32].try_into().map_err(|_| {
+            anyhow::anyhow!(
+                "Invalid program keypair at {}: expected at least 32 bytes",
+                path
+            )
+        })?;
+        return Ok(Keypair::new_from_array(secret));
+    }
+
+    println!("Generating new program keypair at {path}...");
+    let kp = Keypair::new();
+    let bytes: Vec<u8> = kp.to_bytes().to_vec();
+    let json = serde_json::to_string(&bytes)?;
+    if let Some(parent) = std::path::Path::new(path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(path, json)?;
+    Ok(kp)
+}
+
 fn airdrop(rpc_client: &RpcClient, payer: &Keypair) -> Result<()> {
     let balance = rpc_client.get_balance(&payer.pubkey())?;
     let one_sol = 1_000_000_000;
@@ -98,15 +124,11 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    println!(
-        "Running {} test(s) on {}...\n",
-        filtered.len(),
-        cli.network
-    );
+    println!("Running {} test(s) on {}...\n", filtered.len(), cli.network);
 
     let payer = resolve_keypair(&cli.keypair, &cli.network)?;
     let url = rpc_url_for_network(&cli.network);
-    let rpc_client = Arc::new(RpcClient::new(url));
+    let rpc_client = Arc::new(RpcClient::new(&url));
 
     if cli.network == "localnet" {
         airdrop(&rpc_client, &payer)?;
@@ -118,11 +140,35 @@ async fn main() -> Result<()> {
         let info = test.info();
         let label = format!("SIMD-{:04} {}", info.simd_number, info.name);
 
+        // Handle program deployment/checking
+        let mut resolved_program_id = None;
+        if let Some(deployment) = test.program() {
+            let program_kp = match load_or_generate_program_keypair(&deployment.keypair_path) {
+                Ok(kp) => kp,
+                Err(e) => {
+                    results.push((
+                        label,
+                        TestOutcome::Fail {
+                            message: format!("Failed to load program keypair: {e}"),
+                        },
+                    ));
+                    continue;
+                }
+            };
+
+            resolved_program_id = Some(program_kp.pubkey());
+        }
+
         let ctx = RpcContext {
             rpc_client: Arc::clone(&rpc_client),
             payer: payer.insecure_clone(),
             network_name: cli.network.clone(),
+            program_id: resolved_program_id.expect("Could not resolve program id"),
         };
+        if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
+            results.push((label, err_outcome));
+            continue;
+        }
         let outcome = test.run_rpc(ctx).await?;
 
         results.push((label, outcome));
@@ -143,9 +189,15 @@ async fn main() -> Result<()> {
         println!("{:6} {} - {}", status, label, outcome.message());
     }
 
-    let pass_count = results.iter().filter(|(_, o)| matches!(o, TestOutcome::Pass { .. })).count();
+    let pass_count = results
+        .iter()
+        .filter(|(_, o)| matches!(o, TestOutcome::Pass { .. }))
+        .count();
     let fail_count = results.iter().filter(|(_, o)| o.is_fail()).count();
-    let skip_count = results.iter().filter(|(_, o)| matches!(o, TestOutcome::Skip { .. })).count();
+    let skip_count = results
+        .iter()
+        .filter(|(_, o)| matches!(o, TestOutcome::Skip { .. }))
+        .count();
 
     println!(
         "\nSummary: {} passed, {} failed, {} skipped",

@@ -2485,6 +2485,7 @@ dependencies = [
  "simd-0189-hashing",
  "solana-client",
  "solana-keypair",
+ "solana-pubkey 3.0.0",
  "solana-signer",
  "test-common",
  "tokio",
@@ -4796,6 +4797,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "serde_json",
  "solana-client",
  "solana-keypair",
  "solana-pubkey 3.0.0",

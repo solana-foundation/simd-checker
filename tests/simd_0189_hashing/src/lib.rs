@@ -35,16 +35,20 @@ mod test_impl {
             }
         }
 
+        fn program(&self) -> Option<test_common::ProgramDeployment> {
+            Some(test_common::ProgramDeployment {
+                keypair_path: "tests/simd_0189_hashing/program-keypair.json".to_string(),
+                so_path: "target/deploy/simd_0189_hashing.so".to_string(),
+            })
+        }
+
         async fn run_rpc(&self, ctx: RpcContext) -> Result<TestOutcome> {
             use solana_instruction::Instruction;
             use solana_message::Message;
-            use solana_pubkey::Pubkey;
             use solana_signer::Signer;
             use solana_transaction::Transaction;
-            use std::str::FromStr;
 
-            let program_id = Pubkey::from_str("SimdTest111111111111111111111111111111111111")
-                .unwrap_or_else(|_| Pubkey::new_unique());
+            let program_id = ctx.program_id;
 
             let instruction = Instruction::new_with_bytes(program_id, &[], vec![]);
             let recent_blockhash = ctx.rpc_client.get_latest_blockhash()?;

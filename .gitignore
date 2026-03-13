@@ -1,2 +1,4 @@
 /target
 **/*.so
+**/program-keypair.json
+.surfpool

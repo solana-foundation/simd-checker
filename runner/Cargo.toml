@@ -4,12 +4,13 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
 test-common = { path = "../test-common" }
+serde_json = { workspace = true }
 simd-0189-hashing = { path = "../tests/simd_0189_hashing", features = ["no-entrypoint"] }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
+solana-pubkey = { workspace = true }
 solana-client = { workspace = true }
-clap = { workspace = true }
 tokio = { workspace = true }
-anyhow = { workspace = true }
-serde_json = "1"

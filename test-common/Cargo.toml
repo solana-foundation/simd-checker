@@ -4,9 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+serde_json = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 solana-client = { workspace = true }
-anyhow = { workspace = true }
-async-trait = { workspace = true }
