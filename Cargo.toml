@@ -1,0 +1,19 @@
+[workspace]
+members = ["runner", "test-common", "tests/*"]
+resolver = "2"
+
+[workspace.dependencies]
+solana-pubkey = "3"
+solana-keypair = "3"
+solana-signer = "3"
+solana-transaction = "3"
+solana-instruction = "3"
+solana-message = "3"
+solana-system-interface = "3"
+solana-client = "3"
+solana-program = "3"
+solana-signature = "3"
+clap = { version = "4", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+async-trait = "0.1"
