@@ -62,19 +62,27 @@ mod entrypoint {
         log!("----------------------------");
         log!("Status: {}\n", status.as_str());
 
-        // let mut rent_bytes = [0u8; 24]; // Allocate a buffer to hold the Rent sysvar data
-        // let sysvar_id = solana_sysvar::rent::id(); // Get the ID of the Rent sysvar
-        // let offset = 0; // Offset to read from the sysvar data
-        // get_sysvar(&mut rent_bytes[..17], &sysvar_id, offset, 17)?;
+        let mut rent_bytes = [0u8; 24]; // Allocate a buffer to hold the Rent sysvar data
+        let sysvar_id = solana_sysvar::rent::id(); // Get the ID of the Rent sysvar
+        let offset = 0; // Offset to read from the sysvar data
+        get_sysvar(&mut rent_bytes[..17], &sysvar_id, offset, 17)?;
 
-        // let rent: Rent = unsafe { core::mem::transmute(rent_bytes) };
-        // let exemption = rent.exemption_threshold.to_string();
-        // log!("Lamports Per Byte: {}", rent.lamports_per_byte); // Log the lamports per byte from the Rent sysvar
-        // log!("Exemption Threshold: {}", exemption.as_str()); // Log the exemption threshold from the Rent sysvar
-        // log!("Burn Percent: {}", rent.burn_percent);
-        // if is_activated {
-        // } else {
-        // }
+        let rent: Rent = unsafe { core::mem::transmute(rent_bytes) };
+        let exemption = rent.exemption_threshold.to_string();
+        log!("Lamports Per Byte: {}", rent.lamports_per_byte);
+        log!("Exemption Threshold: {}", exemption.as_str());
+        log!("Burn Percent: {}", rent.burn_percent);
+        if is_activated {
+            if rent.exemption_threshold != 1.0 {
+                log!("Feature is activated but exemption threshold is not set to 1.0");
+                return Err(ProgramError::InvalidAccountData);
+            }
+        } else {
+            if rent.exemption_threshold != 2.0 {
+                log!("Feature is not activated, but exemption threshold is not set to 2.0");
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
         Ok(())
     }
 }
@@ -105,10 +113,12 @@ mod test_impl {
 
             let program_id = ctx.program_id;
             let feature_id = ctx.feature_gate;
+            let expect_activated = true;
+            let expect_activated_bit = if expect_activated { 1 } else { 0 };
 
             let instruction = Instruction::new_with_bytes(
                 program_id,
-                &[1],
+                &[expect_activated_bit],
                 vec![AccountMeta::new_readonly(feature_id, false)],
             );
             let recent_blockhash = ctx.rpc_client.get_latest_blockhash()?;
