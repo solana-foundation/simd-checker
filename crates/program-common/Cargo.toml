@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 solana-address = { workspace = true }
+solana-program-log = { workspace = true }
+pinocchio = { workspace = true }

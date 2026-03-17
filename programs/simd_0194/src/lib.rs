@@ -1,5 +1,5 @@
 use pinocchio::{entrypoint, error::ProgramError, AccountView, Address, ProgramResult};
-use program_common::{FeatureGateAccount, TestFailure, FEATURE_GATE_PROGRAM};
+use program_common::FeatureGateStatus;
 use solana_program_log::log;
 use solana_sysvar::get_sysvar;
 
@@ -22,43 +22,10 @@ pub fn process_instruction(
         return Err(ProgramError::InvalidAccountData);
     };
 
-    let feature_bytes = feature.try_borrow()?.to_vec();
-    let feature_gate = if feature_bytes.len() < 9 {
-        FeatureGateAccount {
-            activated: false,
-            epoch: 0,
-        }
-    } else {
-        FeatureGateAccount {
-            activated: feature_bytes[0] != 0,
-            epoch: u64::from_le_bytes(feature_bytes[1..9].try_into().unwrap()),
-        }
-    };
+    let status = FeatureGateStatus::from_account_view(feature)?;
 
-    let is_owned = feature.owned_by(&FEATURE_GATE_PROGRAM);
-    let is_activated = feature_gate.activated;
-    let activation_epoch = feature_gate.epoch;
-    let status = if is_activated {
-        format!("Activated in slot {}", activation_epoch)
-    } else if is_owned {
-        "Pending activation".to_string()
-    } else {
-        "Not Activated".to_string()
-    };
-    // Assert that the account is actually activated in the runtime
-
-    if is_activated && !expect_activated {
-        return Err(ProgramError::Custom(
-            TestFailure::ActivatedWhenNotExpected as u32,
-        ));
-    } else if !is_activated && expect_activated {
-        return Err(ProgramError::Custom(
-            TestFailure::NotActivatedWhenExpected as u32,
-        ));
-    }
-    log!("SIMD-0194 Feature gate");
-    log!("----------------------------");
-    log!("Status: {}\n", status.as_str());
+    status.log_status("0194");
+    status.assert_expected_activation(expect_activated)?;
 
     let mut rent_bytes = [0u8; 24]; // Allocate a buffer to hold the Rent sysvar data
     let sysvar_id = solana_sysvar::rent::id(); // Get the ID of the Rent sysvar
@@ -70,7 +37,7 @@ pub fn process_instruction(
     log!("Lamports Per Byte: {}", rent.lamports_per_byte);
     log!("Exemption Threshold: {}", exemption.as_str());
     log!("Burn Percent: {}", rent.burn_percent);
-    if is_activated {
+    if status.activated {
         if rent.exemption_threshold != 1.0 {
             log!("Feature is activated but exemption threshold is not set to 1.0");
             return Err(ProgramError::InvalidAccountData);
