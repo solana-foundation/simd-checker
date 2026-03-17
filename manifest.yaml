@@ -10,3 +10,11 @@ simd_0194:
     depends_on: []
     test:
         location: "crates/tests/src/simd_0194.rs"
+simd_0266:
+    description: Efficient Token Program
+    number: 266
+    feature_activation:
+        address: ptokFjwyJtrwCa9Kgo9xoDS59V4QccBGEaRFnRPnSdP
+    depends_on: []
+    test:
+        location: "crates/tests/src/simd_0266.rs"
