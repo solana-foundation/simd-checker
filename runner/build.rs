@@ -13,7 +13,6 @@ fn main() {
             let path = entry.path();
             if path.is_dir() && path.join("Cargo.toml").exists() {
                 let dir_name = path.file_name().unwrap().to_string_lossy().to_string();
-                // Convert directory name (snake_case with hyphens) to a valid Rust identifier
                 let crate_ident = dir_name.replace('-', "_");
                 crate_names.push(crate_ident);
             }
@@ -23,16 +22,18 @@ fn main() {
     crate_names.sort();
 
     let mut code = String::new();
-    code.push_str("pub fn all_tests() -> Vec<Box<dyn test_common::SimdTest>> {\n");
-    code.push_str("    vec![\n");
+    code.push_str("pub fn all_tests() -> std::collections::HashMap<String, Box<dyn test_common::SimdTest>> {\n");
+    code.push_str("    let mut map = std::collections::HashMap::new();\n");
     for name in &crate_names {
-        code.push_str(&format!("        {}::register(),\n", name));
+        code.push_str(&format!(
+            "    map.insert(\"{}\".to_string(), {}::register());\n",
+            name, name
+        ));
     }
-    code.push_str("    ]\n");
+    code.push_str("    map\n");
     code.push_str("}\n");
 
     fs::write(&dest, code).unwrap();
 
-    // Re-run if tests directory changes
     println!("cargo:rerun-if-changed=../tests");
 }

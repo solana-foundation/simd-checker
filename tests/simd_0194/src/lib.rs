@@ -83,25 +83,13 @@ mod entrypoint {
 mod test_impl {
     use anyhow::Result;
     use async_trait::async_trait;
-    use pinocchio::Address;
     use solana_message::AccountMeta;
-    use test_common::{RpcContext, SimdTest, TestInfo, TestOutcome};
+    use test_common::{RpcContext, SimdTest, TestOutcome};
 
-    pub struct Simd0189HashingTest;
+    pub struct Simd0194Test;
 
     #[async_trait]
-    impl SimdTest for Simd0189HashingTest {
-        fn info(&self) -> TestInfo {
-            TestInfo {
-                name: "simd_0194".to_string(),
-                description: "Deprecate Rent Exemption Threshold".to_string(),
-                simd_number: 194,
-                feature_gate: Address::from_str_const(
-                    "rent6iVy6PDoViPBeJ6k5EJQrkj62h7DPyLbWGHwjrC",
-                ),
-            }
-        }
-
+    impl SimdTest for Simd0194Test {
         fn program(&self) -> Option<test_common::ProgramDeployment> {
             Some(test_common::ProgramDeployment {
                 keypair_path: "tests/simd_0194/program-keypair.json".to_string(),
@@ -116,8 +104,8 @@ mod test_impl {
             use solana_transaction::Transaction;
 
             let program_id = ctx.program_id;
+            let feature_id = ctx.feature_gate;
 
-            let feature_id = self.info().feature_gate;
             let instruction = Instruction::new_with_bytes(
                 program_id,
                 &[1],
@@ -139,7 +127,7 @@ mod test_impl {
     }
 
     pub fn register() -> Box<dyn SimdTest> {
-        Box::new(Simd0189HashingTest)
+        Box::new(Simd0194Test)
     }
 }
 

@@ -7,17 +7,11 @@ use std::sync::Arc;
 
 use crate::surfpool::deploy_program_surfpool;
 
-mod manifest;
+pub mod manifest;
 mod surfpool;
 mod util;
 
-#[derive(Debug, Clone)]
-pub struct TestInfo {
-    pub name: String,
-    pub description: String,
-    pub simd_number: u32,
-    pub feature_gate: Pubkey,
-}
+pub use manifest::{FeatureConfig, Manifest};
 
 #[derive(Debug)]
 pub enum TestOutcome {
@@ -58,6 +52,7 @@ pub struct RpcContext {
     pub payer: Keypair,
     pub network_name: String,
     pub program_id: Pubkey,
+    pub feature_gate: Pubkey,
 }
 
 impl RpcContext {
@@ -71,7 +66,6 @@ impl RpcContext {
 
 #[async_trait]
 pub trait SimdTest: Send + Sync {
-    fn info(&self) -> TestInfo;
     fn program(&self) -> Option<ProgramDeployment> {
         None
     }
@@ -79,7 +73,7 @@ pub trait SimdTest: Send + Sync {
     fn deploy_or_skip_program(&self, ctx: &RpcContext) -> Result<(), TestOutcome> {
         let Some(ProgramDeployment { so_path, .. }) = self.program() else {
             return Err(TestOutcome::Fail {
-                message: format!("Not program binary found for program {}", self.info().name),
+                message: format!("No program binary found"),
             });
         };
         if ctx.network_name == "localnet" {
@@ -93,9 +87,8 @@ pub trait SimdTest: Send + Sync {
         } else if !ctx.is_program_deployed() {
             Err(TestOutcome::Fail {
                 message: format!(
-                    "Program {} for test {} not deployed on {}",
+                    "Program {} not deployed on {}",
                     ctx.program_id,
-                    self.info().name,
                     ctx.network_name
                 ),
             })
@@ -103,5 +96,6 @@ pub trait SimdTest: Send + Sync {
             Ok(())
         }
     }
+
     async fn run_rpc(&self, ctx: RpcContext) -> Result<TestOutcome>;
 }

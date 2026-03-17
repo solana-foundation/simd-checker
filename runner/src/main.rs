@@ -3,8 +3,9 @@ use clap::Parser;
 use solana_client::{rpc_client::RpcClient, rpc_config::CommitmentConfig};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
+use std::path::Path;
 use std::sync::Arc;
-use test_common::{RpcContext, SimdTest, TestOutcome};
+use test_common::{Manifest, RpcContext, TestOutcome};
 
 include!(concat!(env!("OUT_DIR"), "/test_registry.rs"));
 
@@ -25,6 +26,10 @@ struct Cli {
     /// Path to keypair file (required for testnet/mainnet, defaults to ~/.config/solana/id.json for localnet)
     #[arg(long)]
     keypair: Option<String>,
+
+    /// Path to the manifest YAML file
+    #[arg(long, default_value = "manifest.yaml")]
+    manifest: String,
 }
 
 fn rpc_url_for_network(network: &str) -> String {
@@ -106,26 +111,29 @@ fn airdrop(rpc_client: &RpcClient, payer: &Keypair) -> Result<()> {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    let tests = all_tests();
 
-    let filtered: Vec<Box<dyn SimdTest>> = tests
-        .into_iter()
-        .filter(|t| {
+    let manifest = Manifest::load(Path::new(&cli.manifest))?;
+    let mut tests = all_tests();
+
+    // Collect manifest entries, filtered and sorted by SIMD number
+    let mut entries: Vec<_> = manifest
+        .iter()
+        .filter(|(id, config)| {
             if let Some(ref f) = cli.filter {
-                let info = t.info();
-                info.name.contains(f) || info.simd_number.to_string().contains(f)
+                id.contains(f) || config.number.to_string().contains(f)
             } else {
                 true
             }
         })
         .collect();
+    entries.sort_by_key(|(_, config)| config.number);
 
-    if filtered.is_empty() {
+    if entries.is_empty() {
         println!("No tests matched the filter.");
         return Ok(());
     }
 
-    println!("Running {} test(s) on {}...\n", filtered.len(), cli.network);
+    println!("Running {} test(s) on {}...\n", entries.len(), cli.network);
 
     let payer = resolve_keypair(&cli.keypair, &cli.network)?;
     let url = rpc_url_for_network(&cli.network);
@@ -140,9 +148,18 @@ async fn main() -> Result<()> {
 
     let mut results: Vec<(String, TestOutcome)> = Vec::new();
 
-    for test in &filtered {
-        let info = test.info();
-        let label = format!("SIMD-{:04} {}", info.simd_number, info.name);
+    for (id, config) in &entries {
+        let label = format!("SIMD-{:04} {}", config.number, id);
+
+        let Some(test) = tests.remove(id.as_str()) else {
+            results.push((
+                label,
+                TestOutcome::Skip {
+                    reason: "No test implementation found".to_string(),
+                },
+            ));
+            continue;
+        };
 
         // Handle program deployment/checking
         let mut resolved_program_id = None;
@@ -168,6 +185,7 @@ async fn main() -> Result<()> {
             payer: payer.insecure_clone(),
             network_name: cli.network.clone(),
             program_id: resolved_program_id.expect("Could not resolve program id"),
+            feature_gate: config.feature_activation.address,
         };
         if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
             results.push((label, err_outcome));

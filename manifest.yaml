@@ -1,0 +1,12 @@
+simd_0194:
+    description: Deprecate Rent Exemption Threshold
+    number: 194
+    feature_activation:
+        address: rent6iVy6PDoViPBeJ6k5EJQrkj62h7DPyLbWGHwjrC
+        devnet:
+            epoch: 1023
+        testnet:
+            epoch: 907
+    depends_on: []
+    test:
+        location: "tests/simd_0194/src/lib.rs"
