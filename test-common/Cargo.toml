@@ -11,3 +11,4 @@ solana-pubkey = { workspace = true }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 solana-client = { workspace = true }
+program-common = { path = "../program-common" }

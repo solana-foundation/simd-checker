@@ -1,11 +1,10 @@
 [package]
-name = "simd-0189-hashing"
+name = "simd-0194"
 version = "0.1.0"
 edition = "2021"
 
 [features]
 no-entrypoint = [
-    "dep:test-common",
     "dep:solana-keypair",
     "dep:solana-signer",
     "dep:solana-instruction",
@@ -15,17 +14,21 @@ no-entrypoint = [
     "dep:solana-signature",
     "dep:anyhow",
     "dep:async-trait",
+    "dep:test-common",
 ]
 
 [lib]
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
-solana-program = { workspace = true }
-solana-pubkey = { workspace = true }
+pinocchio = { workspace = true}
+solana-address = { workspace = true }
+solana-program-log = { workspace = true }
+solana-sysvar = { workspace = true }
+program-common = { path = "../../program-common" }
+test-common = { path = "../../test-common", optional = true }
 
 # Host-side deps, only needed for test runner (behind no-entrypoint feature)
-test-common = { path = "../../test-common", optional = true }
 solana-keypair = { workspace = true, optional = true }
 solana-signer = { workspace = true, optional = true }
 solana-instruction = { workspace = true, optional = true }

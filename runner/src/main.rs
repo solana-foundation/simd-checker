@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
-use solana_client::rpc_client::RpcClient;
+use solana_client::{rpc_client::RpcClient, rpc_config::CommitmentConfig};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use std::sync::Arc;
@@ -70,6 +70,7 @@ fn resolve_keypair(keypair_arg: &Option<String>, network: &str) -> Result<Keypai
 
 fn load_or_generate_program_keypair(path: &str) -> Result<Keypair> {
     if let Ok(data) = std::fs::read_to_string(path) {
+        println!("Reading keypair at path: {}", path);
         let bytes: Vec<u8> = serde_json::from_str(&data)?;
         let secret: [u8; 32] = bytes[..32].try_into().map_err(|_| {
             anyhow::anyhow!(
@@ -128,7 +129,10 @@ async fn main() -> Result<()> {
 
     let payer = resolve_keypair(&cli.keypair, &cli.network)?;
     let url = rpc_url_for_network(&cli.network);
-    let rpc_client = Arc::new(RpcClient::new(&url));
+    let rpc_client = Arc::new(RpcClient::new_with_commitment(
+        &url,
+        CommitmentConfig::confirmed(),
+    ));
 
     if cli.network == "localnet" {
         airdrop(&rpc_client, &payer)?;

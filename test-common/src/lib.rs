@@ -7,6 +7,7 @@ use std::sync::Arc;
 
 use crate::surfpool::deploy_program_surfpool;
 
+mod manifest;
 mod surfpool;
 mod util;
 
@@ -15,7 +16,7 @@ pub struct TestInfo {
     pub name: String,
     pub description: String,
     pub simd_number: u32,
-    pub feature_gate: Option<Pubkey>,
+    pub feature_gate: Pubkey,
 }
 
 #[derive(Debug)]

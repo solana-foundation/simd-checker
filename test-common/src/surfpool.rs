@@ -2,6 +2,7 @@ use crate::{util::hex_encode, RpcContext};
 use anyhow::Result;
 use serde_json::json;
 use solana_client::rpc_request::RpcRequest;
+use solana_signer::Signer;
 
 pub fn deploy_program_surfpool(ctx: &RpcContext, so_path: &str) -> Result<()> {
     let so_bytes = std::fs::read(so_path)
@@ -27,7 +28,7 @@ pub fn deploy_program_surfpool(ctx: &RpcContext, so_path: &str) -> Result<()> {
             RpcRequest::Custom {
                 method: "surfnet_writeProgram",
             },
-            json!([program_id, hex_data, offset]),
+            json!([program_id, hex_data, offset, ctx.payer.pubkey().to_string()]),
         )?;
 
         if let Some(err) = resp.get("error") {
