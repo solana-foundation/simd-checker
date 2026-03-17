@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+crossbeam = { workspace =  true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
@@ -14,3 +15,8 @@ solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 solana-client = { workspace = true }
 program-common = { path = "../program-common" }
+
+tokio = { workspace = true }
+
+surfpool-core = { path = "../../../surfpool/crates/core" }
+surfpool-types = { path = "../../../surfpool/crates/types" }

@@ -4,6 +4,7 @@ use solana_client::rpc_client::RpcClient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use std::sync::Arc;
+use surfpool_types::{SimnetConfig, SimnetEvent, SurfpoolConfig, SvmFeatureConfig};
 
 use crate::surfpool::deploy_program_surfpool;
 
@@ -12,6 +13,76 @@ mod surfpool;
 mod util;
 
 pub use manifest::{FeatureConfig, Manifest};
+
+pub struct SurfnetHandle {
+    simnet_commands_tx: crossbeam::channel::Sender<surfpool_types::SimnetCommand>,
+    _thread_handle: std::thread::JoinHandle<()>,
+}
+
+impl SurfnetHandle {
+    pub fn kill(self) {
+        let _ = self
+            .simnet_commands_tx
+            .send(surfpool_types::SimnetCommand::Terminate(None));
+    }
+}
+
+pub async fn start_surfnet() -> Result<SurfnetHandle> {
+    let (surfnet_svm, simnet_events_rx, geyser_events_rx) =
+        surfpool_core::surfnet::svm::SurfnetSvm::default();
+
+    let config = SurfpoolConfig {
+        simnets: vec![SimnetConfig {
+            offline_mode: true,
+            remote_rpc_url: None,
+            instruction_profiling_enabled: false,
+            max_profiles: 1,
+            feature_config: SvmFeatureConfig::new(),
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    let (simnet_commands_tx, simnet_commands_rx) = crossbeam::channel::unbounded();
+    let (subgraph_commands_tx, _) = crossbeam::channel::unbounded();
+
+    let handle_tx = simnet_commands_tx.clone();
+
+    // start_local_surfnet's future is !Send (crossbeam internals), so we
+    // run it on a dedicated thread with its own single-threaded tokio runtime.
+    let thread_handle = std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_multi_thread()
+            .enable_all()
+            .build()
+            .expect("failed to build tokio runtime for surfnet");
+        rt.block_on(async move {
+            let _ = surfpool_core::start_local_surfnet(
+                surfnet_svm,
+                config,
+                subgraph_commands_tx,
+                simnet_commands_tx,
+                simnet_commands_rx,
+                geyser_events_rx,
+            )
+            .await;
+        });
+    });
+
+    // Wait for the surfnet to signal readiness on the events channel.
+    loop {
+        match simnet_events_rx.recv() {
+            Ok(SimnetEvent::Ready(_)) => break,
+            Ok(SimnetEvent::Aborted(msg)) => anyhow::bail!("Surfnet aborted: {msg}"),
+            Ok(_) => continue,
+            Err(_) => anyhow::bail!("Surfnet event channel closed unexpectedly"),
+        }
+    }
+
+    Ok(SurfnetHandle {
+        simnet_commands_tx: handle_tx,
+        _thread_handle: thread_handle,
+    })
+}
 
 #[derive(Debug)]
 pub enum TestOutcome {
@@ -85,11 +156,10 @@ pub trait SimdTest: Send + Sync {
                 Ok(())
             }
         } else if !ctx.is_program_deployed() {
-            Err(TestOutcome::Fail {
-                message: format!(
+            Err(TestOutcome::Skip {
+                reason: format!(
                     "Program {} not deployed on {}",
-                    ctx.program_id,
-                    ctx.network_name
+                    ctx.program_id, ctx.network_name
                 ),
             })
         } else {

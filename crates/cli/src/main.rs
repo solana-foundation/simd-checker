@@ -5,7 +5,7 @@ use solana_keypair::Keypair;
 use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
-use test_common::{Manifest, RpcContext, TestOutcome};
+use test_common::{Manifest, RpcContext, TestOutcome, start_surfnet};
 
 use tests::all_tests;
 
@@ -142,10 +142,6 @@ async fn main() -> Result<()> {
         CommitmentConfig::confirmed(),
     ));
 
-    if cli.network == "localnet" {
-        airdrop(&rpc_client, &payer)?;
-    }
-
     let mut results: Vec<(String, TestOutcome)> = Vec::new();
 
     for (id, config) in &entries {
@@ -161,12 +157,24 @@ async fn main() -> Result<()> {
             continue;
         };
 
+        // Start a fresh surfnet for each localnet test
+        let surfnet_handle = if cli.network == "localnet" {
+            let handle = start_surfnet().await?;
+            airdrop(&rpc_client, &payer)?;
+            Some(handle)
+        } else {
+            None
+        };
+
         // Handle program deployment/checking
         let mut resolved_program_id = None;
         if let Some(deployment) = test.program() {
             let program_kp = match load_or_generate_program_keypair(&deployment.keypair_path) {
                 Ok(kp) => kp,
                 Err(e) => {
+                    if let Some(h) = surfnet_handle {
+                        h.kill();
+                    }
                     results.push((
                         label,
                         TestOutcome::Fail {
@@ -188,10 +196,17 @@ async fn main() -> Result<()> {
             feature_gate: config.feature_activation.address,
         };
         if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
+            if let Some(h) = surfnet_handle {
+                h.kill();
+            }
             results.push((label, err_outcome));
             continue;
         }
         let outcome = test.run_rpc(ctx).await?;
+
+        if let Some(h) = surfnet_handle {
+            h.kill();
+        }
 
         results.push((label, outcome));
     }
