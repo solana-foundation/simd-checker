@@ -10,11 +10,15 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-test-common = { path = "../test-common" }
-tests = { path = "../tests" }
 serde_json = { workspace = true }
+tokio = { workspace = true }
+
+## Solana Crates
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-client = { workspace = true }
-tokio = { workspace = true }
+
+## Local Crates
+test-common = { path = "../test-common" }
+tests = { path = "../tests" }

@@ -10,6 +10,9 @@ pinocchio = "0.10.2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_yaml = "0.9"
+tokio = { version = "1", features = ["full"] }
+
+## Solana crates
 solana-address = { version = "2.3.0", features = ["decode"] }
 solana-client = "3"
 solana-instruction = "3"
@@ -23,4 +26,7 @@ solana-signer = "3"
 solana-system-interface = "3"
 solana-sysvar = "3"
 solana-transaction = "3"
-tokio = { version = "1", features = ["full"] }
+
+## Token crates
+spl-associated-token-account-interface = { version = "2.0.0", default-features = false }
+spl-token-interface = { version = "2.0.0", default-features = false }
