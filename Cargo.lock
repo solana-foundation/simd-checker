@@ -2372,22 +2372,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "runner"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde_json",
- "simd-0194",
- "solana-client",
- "solana-keypair",
- "solana-pubkey 3.0.0",
- "solana-signer",
- "test-common",
- "tokio",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.27"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2754,6 +2738,22 @@ name = "simd-adler32"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
+
+[[package]]
+name = "simd-checker"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "simd-0194",
+ "solana-client",
+ "solana-keypair",
+ "solana-pubkey 3.0.0",
+ "solana-signer",
+ "test-common",
+ "tokio",
+]
 
 [[package]]
 name = "siphasher"

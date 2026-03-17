@@ -9,4 +9,4 @@ build-programs:
     done
 
 run *ARGS: build-programs
-    cargo run -p runner -- {{ARGS}}
+    cargo run -p simd-checker -- {{ARGS}}

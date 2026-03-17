@@ -19,7 +19,7 @@ struct Cli {
     #[arg(long)]
     filter: Option<String>,
 
-    /// Target network: localnet, testnet, mainnet, or a custom RPC URL
+    /// Target network: localnet, devnet, testnet, mainnet, or a custom RPC URL
     #[arg(long, default_value = "localnet")]
     network: String,
 
