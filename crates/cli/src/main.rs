@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 use test_common::{Manifest, RpcContext, TestOutcome};
 
-include!(concat!(env!("OUT_DIR"), "/test_registry.rs"));
+use tests::all_tests;
 
 #[derive(Parser)]
 #[command(

@@ -9,4 +9,4 @@ simd_0194:
             epoch: 907
     depends_on: []
     test:
-        location: "tests/simd_0194/src/lib.rs"
+        location: "crates/tests/src/simd_0194.rs"

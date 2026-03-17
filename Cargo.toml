@@ -1,5 +1,5 @@
 [workspace]
-members = ["simd-checker", "test-common", "program-common", "tests/*"]
+members = ["crates/*", "programs/*"]
 resolver = "2"
 
 [workspace.dependencies]

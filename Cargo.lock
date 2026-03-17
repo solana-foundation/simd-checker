@@ -560,6 +560,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde_json",
+ "solana-client",
+ "solana-keypair",
+ "solana-pubkey 3.0.0",
+ "solana-signer",
+ "test-common",
+ "tests",
+ "tokio",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2713,24 +2729,14 @@ dependencies = [
 ]
 
 [[package]]
-name = "simd-0194"
+name = "simd-0194-program"
 version = "0.1.0"
 dependencies = [
- "anyhow",
- "async-trait",
  "pinocchio",
  "program-common",
  "solana-address 2.3.0",
- "solana-client",
- "solana-instruction",
- "solana-keypair",
- "solana-message",
  "solana-program-log",
- "solana-signature",
- "solana-signer",
  "solana-sysvar",
- "solana-transaction",
- "test-common",
 ]
 
 [[package]]
@@ -2738,22 +2744,6 @@ name = "simd-adler32"
 version = "0.3.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
-
-[[package]]
-name = "simd-checker"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde_json",
- "simd-0194",
- "solana-client",
- "solana-keypair",
- "solana-pubkey 3.0.0",
- "solana-signer",
- "test-common",
- "tokio",
-]
 
 [[package]]
 name = "siphasher"
@@ -4611,6 +4601,22 @@ dependencies = [
  "solana-keypair",
  "solana-pubkey 3.0.0",
  "solana-signer",
+]
+
+[[package]]
+name = "tests"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "solana-client",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-message",
+ "solana-signature",
+ "solana-signer",
+ "solana-transaction",
+ "test-common",
 ]
 
 [[package]]

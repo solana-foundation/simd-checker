@@ -1,14 +1,18 @@
 [package]
-name = "simd-checker"
+name = "cli"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "simd-checker"
+path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
 test-common = { path = "../test-common" }
+tests = { path = "../tests" }
 serde_json = { workspace = true }
-simd-0194 = { path = "../tests/simd_0194", features = ["no-entrypoint"] }
 solana-keypair = { workspace = true }
 solana-signer = { workspace = true }
 solana-pubkey = { workspace = true }
