@@ -2,6 +2,10 @@
 
 Verify SIMD feature activations on Solana networks.
 
+## Notice
+
+Currently, building requires a local clone of the surfpool repo. This will be fixed once the surfpool crates are regularly published again. Soon™.
+
 ## Usage
 
 ```
