@@ -6,16 +6,22 @@ Verify SIMD feature activations on Solana networks.
 
 ```
 # Build programs and run all tests on localnet
-just run --network localnet
+just run
 
 # Run a specific test
-just run --network localnet --filter 0194
+just run --filter 0194
+
+# Run on devnet/testnet/mainnet
+just run --network testnet
+
+# Run with debug logging
+just debug
 
 # Output results as JSON to stdout
-just run --network localnet --output json
+just run --output json
 
 # Write results as YAML to a file
-just run --network localnet --output yaml --output-file results.yaml
+just run --output yaml --output-file results.yaml
 ```
 
 ### CLI flags
