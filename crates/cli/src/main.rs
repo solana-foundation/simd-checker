@@ -5,7 +5,7 @@ use solana_keypair::Keypair;
 use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
-use test_common::{Manifest, RpcContext, TestOutcome, start_surfnet};
+use test_common::{Manifest, RpcContext, TestOutcome, collect_feature_deps, start_surfnet};
 
 use tests::all_tests;
 
@@ -159,7 +159,8 @@ async fn main() -> Result<()> {
 
         // Start a fresh surfnet for each localnet test
         let surfnet_handle = if cli.network == "localnet" {
-            let handle = start_surfnet().await?;
+            let features = collect_feature_deps(&manifest, id);
+            let handle = start_surfnet(features).await?;
             airdrop(&rpc_client, &payer)?;
             Some(handle)
         } else {

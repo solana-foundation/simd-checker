@@ -3,6 +3,7 @@ use async_trait::async_trait;
 use solana_client::rpc_client::RpcClient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
+use std::collections::HashSet;
 use std::sync::Arc;
 use surfpool_types::{SimnetConfig, SimnetEvent, SurfpoolConfig, SvmFeatureConfig};
 
@@ -13,6 +14,30 @@ mod surfpool;
 mod util;
 
 pub use manifest::{FeatureConfig, Manifest};
+
+pub fn collect_feature_deps(manifest: &Manifest, simd_id: &str) -> Vec<Pubkey> {
+    let mut pubkeys = Vec::new();
+    let mut visited = HashSet::new();
+    collect_feature_deps_inner(manifest, simd_id, &mut pubkeys, &mut visited);
+    pubkeys
+}
+
+fn collect_feature_deps_inner(
+    manifest: &Manifest,
+    simd_id: &str,
+    pubkeys: &mut Vec<Pubkey>,
+    visited: &mut HashSet<String>,
+) {
+    if !visited.insert(simd_id.to_string()) {
+        return;
+    }
+    if let Some(config) = manifest.get(simd_id) {
+        pubkeys.push(config.feature_activation.address);
+        for dep in &config.depends_on {
+            collect_feature_deps_inner(manifest, dep, pubkeys, visited);
+        }
+    }
+}
 
 pub struct SurfnetHandle {
     simnet_commands_tx: crossbeam::channel::Sender<surfpool_types::SimnetCommand>,
@@ -27,9 +52,14 @@ impl SurfnetHandle {
     }
 }
 
-pub async fn start_surfnet() -> Result<SurfnetHandle> {
+pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHandle> {
     let (surfnet_svm, simnet_events_rx, geyser_events_rx) =
         surfpool_core::surfnet::svm::SurfnetSvm::default();
+
+    let mut feature_config = SvmFeatureConfig::new();
+    for pubkey in features_to_enable {
+        feature_config = feature_config.enable(pubkey);
+    }
 
     let config = SurfpoolConfig {
         simnets: vec![SimnetConfig {
@@ -37,7 +67,7 @@ pub async fn start_surfnet() -> Result<SurfnetHandle> {
             remote_rpc_url: None,
             instruction_profiling_enabled: false,
             max_profiles: 1,
-            feature_config: SvmFeatureConfig::new(),
+            feature_config,
             ..Default::default()
         }],
         ..Default::default()
