@@ -8,7 +8,7 @@ use std::path::Path;
 use std::sync::Arc;
 use test_common::{
     collect_dependency_features, collect_feature_deps, start_surfnet, ActivationContext, Manifest,
-    RpcContext, TestOutcome,
+    RpcContext, TestOutcome, TestReport, TestResult,
 };
 
 use tests::all_tests;
@@ -34,6 +34,14 @@ struct Cli {
     /// Path to the manifest YAML file
     #[arg(long, default_value = "manifest.yaml")]
     manifest: String,
+
+    /// Output format: text, json, yaml
+    #[arg(long, default_value = "text")]
+    output: String,
+
+    /// Write json/yaml output to a file instead of stdout
+    #[arg(long)]
+    output_file: Option<String>,
 }
 
 fn rpc_url_for_network(network: &str) -> String {
@@ -153,15 +161,16 @@ async fn main() -> Result<()> {
         CommitmentConfig::confirmed(),
     ));
 
-    let mut results: Vec<(String, TestOutcome, Option<ActivationContext>)> = Vec::new();
+    let mut results: Vec<TestResult> = Vec::new();
 
     for (id, config) in &entries {
         let Some(test) = tests.get(id.as_str()) else {
-            results.push((
+            let outcome = TestOutcome::Skip {
+                reason: "No test implementation found".to_string(),
+            };
+            results.push(TestResult::new(
                 format!("SIMD-{:04} {}", config.number, id),
-                TestOutcome::Skip {
-                    reason: "No test implementation found".to_string(),
-                },
+                &outcome,
                 None,
             ));
             continue;
@@ -174,7 +183,11 @@ async fn main() -> Result<()> {
         let passes: Vec<(&str, bool, Option<Vec<solana_pubkey::Pubkey>>)> =
             if cli.network == "localnet" {
                 vec![
-                    ("deactivated", false, Some(collect_dependency_features(&manifest, id))),
+                    (
+                        "deactivated",
+                        false,
+                        Some(collect_dependency_features(&manifest, id)),
+                    ),
                     ("activated", true, Some(collect_feature_deps(&manifest, id))),
                 ]
             } else {
@@ -190,10 +203,7 @@ async fn main() -> Result<()> {
             };
 
             let (surfnet_handle, rpc_client) = if let Some(features) = features {
-                debug!(
-                    "Feature gates for {} ({}): {:?}",
-                    id, pass_name, features
-                );
+                debug!("Feature gates for {} ({}): {:?}", id, pass_name, features);
                 let handle = start_surfnet(features.clone()).await?;
                 debug!("Surfnet RPC url: {}", handle.rpc_url);
                 let client = Arc::new(RpcClient::new_with_commitment(
@@ -215,13 +225,10 @@ async fn main() -> Result<()> {
                         if let Some(h) = surfnet_handle {
                             h.kill();
                         }
-                        results.push((
-                            label,
-                            TestOutcome::Fail {
-                                message: format!("Failed to load program keypair: {e}"),
-                            },
-                            None,
-                        ));
+                        let outcome = TestOutcome::Fail {
+                            message: format!("Failed to load program keypair: {e}"),
+                        };
+                        results.push(TestResult::new(label, &outcome, None));
                         continue;
                     }
                 };
@@ -241,7 +248,7 @@ async fn main() -> Result<()> {
                 if let Some(h) = surfnet_handle {
                     h.kill();
                 }
-                results.push((label, err_outcome, None));
+                results.push(TestResult::new(label, &err_outcome, None));
                 continue;
             }
 
@@ -258,51 +265,56 @@ async fn main() -> Result<()> {
                 h.kill();
             }
 
-            results.push((label, outcome, Some(activation)));
+            results.push(TestResult::new(label, &outcome, Some(activation)));
         }
     }
 
-    // Print results table
-    println!();
-    let mut any_fail = false;
-    for (label, outcome, activation) in &results {
-        let status = match outcome {
-            TestOutcome::Pass { .. } => "[PASS]",
-            TestOutcome::Fail { .. } => {
-                any_fail = true;
-                "[FAIL]"
+    let report = TestReport::new(results);
+
+    match cli.output.as_str() {
+        "json" => {
+            let json = serde_json::to_string_pretty(&report)?;
+            if let Some(ref path) = cli.output_file {
+                std::fs::write(path, &json)?;
+            } else {
+                println!("{json}");
             }
-            TestOutcome::Skip { .. } => "[SKIP]",
-        };
-        let activation_str = match activation {
-            Some(ctx) => format!(" [{}]", ctx),
-            None => String::new(),
-        };
-        println!(
-            "{:6} {}{} - {}",
-            status,
-            label,
-            activation_str,
-            outcome.message()
-        );
+        }
+        "yaml" | "yml" => {
+            let yaml = serde_yaml::to_string(&report)?;
+            if let Some(ref path) = cli.output_file {
+                std::fs::write(path, &yaml)?;
+            } else {
+                print!("{yaml}");
+            }
+        }
+        _ => {
+            // text format (default) — matches previous output
+            println!();
+            for result in &report.results {
+                let status = match result.status.as_str() {
+                    "pass" => "[PASS]",
+                    "fail" => "[FAIL]",
+                    "skip" => "[SKIP]",
+                    _ => "[????]",
+                };
+                let activation_str = match &result.activation {
+                    Some(ctx) => format!(" [{}]", ctx),
+                    None => String::new(),
+                };
+                println!(
+                    "{:6} {}{} - {}",
+                    status, result.label, activation_str, result.message,
+                );
+            }
+            println!(
+                "\nSummary: {} passed, {} failed, {} skipped",
+                report.summary.passed, report.summary.failed, report.summary.skipped,
+            );
+        }
     }
 
-    let pass_count = results
-        .iter()
-        .filter(|(_, o, _)| matches!(o, TestOutcome::Pass { .. }))
-        .count();
-    let fail_count = results.iter().filter(|(_, o, _)| o.is_fail()).count();
-    let skip_count = results
-        .iter()
-        .filter(|(_, o, _)| matches!(o, TestOutcome::Skip { .. }))
-        .count();
-
-    println!(
-        "\nSummary: {} passed, {} failed, {} skipped",
-        pass_count, fail_count, skip_count
-    );
-
-    if any_fail {
+    if report.any_fail() {
         std::process::exit(1);
     }
 

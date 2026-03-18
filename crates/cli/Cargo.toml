@@ -13,6 +13,7 @@ clap = { workspace = true }
 env_logger = { workspace = true }
 log = { workspace = true }
 serde_json = { workspace = true }
+serde_yaml = { workspace = true }
 tokio = { workspace = true }
 
 ## Solana Crates

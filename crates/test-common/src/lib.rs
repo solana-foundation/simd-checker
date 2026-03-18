@@ -1,13 +1,14 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use log::debug;
+use serde::Serialize;
 use solana_client::rpc_client::RpcClient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use std::collections::HashSet;
 use std::sync::Arc;
 use surfpool_types::{
-    RpcConfig, SimnetConfig, SimnetEvent, SurfpoolConfig, StudioConfig, SvmFeatureConfig,
+    RpcConfig, SimnetConfig, SimnetEvent, StudioConfig, SurfpoolConfig, SvmFeatureConfig,
 };
 
 use crate::surfpool::deploy_program_surfpool;
@@ -174,7 +175,7 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
     })
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ActivationContext {
     /// Whether the feature was expected to be activated for this test run.
     pub expected: bool,
@@ -192,7 +193,11 @@ impl std::fmt::Display for ActivationContext {
         write!(
             f,
             "expected={}, detected={}",
-            if self.expected { "activated" } else { "not activated" },
+            if self.expected {
+                "activated"
+            } else {
+                "not activated"
+            },
             detected_str,
         )
     }
@@ -224,6 +229,68 @@ impl TestOutcome {
             TestOutcome::Fail { message } => message,
             TestOutcome::Skip { reason } => reason,
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TestResult {
+    pub label: String,
+    pub status: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub activation: Option<ActivationContext>,
+}
+
+impl TestResult {
+    pub fn new(
+        label: String,
+        outcome: &TestOutcome,
+        activation: Option<ActivationContext>,
+    ) -> Self {
+        let status = match outcome {
+            TestOutcome::Pass { .. } => "pass",
+            TestOutcome::Fail { .. } => "fail",
+            TestOutcome::Skip { .. } => "skip",
+        };
+        Self {
+            label,
+            status: status.to_string(),
+            message: outcome.message().to_string(),
+            activation,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct TestSummary {
+    pub passed: usize,
+    pub failed: usize,
+    pub skipped: usize,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TestReport {
+    pub results: Vec<TestResult>,
+    pub summary: TestSummary,
+}
+
+impl TestReport {
+    pub fn new(results: Vec<TestResult>) -> Self {
+        let passed = results.iter().filter(|r| r.status == "pass").count();
+        let failed = results.iter().filter(|r| r.status == "fail").count();
+        let skipped = results.iter().filter(|r| r.status == "skip").count();
+        Self {
+            results,
+            summary: TestSummary {
+                passed,
+                failed,
+                skipped,
+            },
+        }
+    }
+
+    pub fn any_fail(&self) -> bool {
+        self.summary.failed > 0
     }
 }
 

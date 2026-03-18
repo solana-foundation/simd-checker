@@ -1361,6 +1361,7 @@ dependencies = [
  "env_logger",
  "log",
  "serde_json",
+ "serde_yaml",
  "solana-client",
  "solana-keypair",
  "solana-pubkey 3.0.0",
