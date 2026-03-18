@@ -2,6 +2,33 @@
 
 Verify SIMD feature activations on Solana networks.
 
+## Usage
+
+```
+# Build programs and run all tests on localnet
+just run --network localnet
+
+# Run a specific test
+just run --network localnet --filter 0194
+
+# Output results as JSON to stdout
+just run --network localnet --output json
+
+# Write results as YAML to a file
+just run --network localnet --output yaml --output-file results.yaml
+```
+
+### CLI flags
+
+| Flag            | Default                    | Description                                                           |
+| --------------- | -------------------------- | --------------------------------------------------------------------- |
+| `--network`     | `localnet`                 | Target network: `localnet`, `testnet`, `mainnet`, or a custom RPC URL |
+| `--filter`      |                            | Filter tests by name or SIMD number                                   |
+| `--keypair`     | `~/.config/solana/id.json` | Path to keypair file (required for testnet/mainnet)                   |
+| `--manifest`    | `manifest.yaml`            | Path to the manifest YAML file                                        |
+| `--output`      | `text`                     | Output format: `text`, `json`, or `yaml`                              |
+| `--output-file` |                            | Write json/yaml output to a file instead of stdout                    |
+
 ## Adding a new test
 
 1. **Create the on-chain program** under `programs/simd_XXXX/` with its own `Cargo.toml` (`cdylib` crate type) and entrypoint logic in `src/lib.rs`.
@@ -59,13 +86,3 @@ Verify SIMD feature activations on Solana networks.
      test:
        location: "crates/tests/src/simd_XXXX.rs"
    ```
-
-## Usage
-
-```
-# Build programs and run all tests on localnet
-just run --network localnet
-
-# Run a specific test
-just run --network localnet --filter 0194
-```
