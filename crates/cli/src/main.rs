@@ -165,15 +165,22 @@ async fn main() -> Result<()> {
             continue;
         };
 
+        info!("Starting test {}", id);
+
         // Start a fresh surfnet for each localnet test
-        let surfnet_handle = if cli.network == "localnet" {
+        let (surfnet_handle, rpc_client) = if cli.network == "localnet" {
             let features = collect_feature_deps(&manifest, id);
             debug!("Feature deps for {}: {:?}", id, features);
             let handle = start_surfnet(features).await?;
-            airdrop(&rpc_client, &payer)?;
-            Some(handle)
+            debug!("Surfnet RPC url: {}", handle.rpc_url);
+            let client = Arc::new(RpcClient::new_with_commitment(
+                &handle.rpc_url,
+                CommitmentConfig::confirmed(),
+            ));
+            airdrop(&client, &payer)?;
+            (Some(handle), client)
         } else {
-            None
+            (None, Arc::clone(&rpc_client))
         };
 
         // Handle program deployment/checking

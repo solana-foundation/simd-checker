@@ -6,7 +6,9 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use std::collections::HashSet;
 use std::sync::Arc;
-use surfpool_types::{SimnetConfig, SimnetEvent, SurfpoolConfig, SvmFeatureConfig};
+use surfpool_types::{
+    RpcConfig, SimnetConfig, SimnetEvent, SurfpoolConfig, StudioConfig, SvmFeatureConfig,
+};
 
 use crate::surfpool::deploy_program_surfpool;
 
@@ -43,6 +45,7 @@ fn collect_feature_deps_inner(
 pub struct SurfnetHandle {
     simnet_commands_tx: crossbeam::channel::Sender<surfpool_types::SimnetCommand>,
     _thread_handle: std::thread::JoinHandle<()>,
+    pub rpc_url: String,
 }
 
 impl SurfnetHandle {
@@ -50,7 +53,14 @@ impl SurfnetHandle {
         let _ = self
             .simnet_commands_tx
             .send(surfpool_types::SimnetCommand::Terminate(None));
+        let _ = self._thread_handle.join();
     }
+}
+
+/// Find an available TCP port by binding to port 0.
+fn find_available_port() -> Result<u16> {
+    let listener = std::net::TcpListener::bind("127.0.0.1:0")?;
+    Ok(listener.local_addr()?.port())
 }
 
 pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHandle> {
@@ -63,7 +73,32 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
     }
     debug!("Surfnet feature config: {:?}", feature_config);
 
+    let rpc_port = find_available_port()?;
+    let ws_port = find_available_port()?;
+    let studio_port = find_available_port()?;
+    let gossip_port = find_available_port()?;
+    let tpu_port = find_available_port()?;
+    let tpu_quic_port = find_available_port()?;
+    debug!(
+        "Surfnet ports: rpc={}, ws={}, studio={}, gossip={}, tpu={}, tpu_quic={}",
+        rpc_port, ws_port, studio_port, gossip_port, tpu_port, tpu_quic_port
+    );
+
+    let rpc_url = format!("http://127.0.0.1:{}", rpc_port);
+
     let config = SurfpoolConfig {
+        rpc: RpcConfig {
+            bind_host: "127.0.0.1".to_string(),
+            bind_port: rpc_port,
+            ws_port,
+            gossip_port,
+            tpu_port,
+            tpu_quic_port,
+        },
+        studio: StudioConfig {
+            bind_host: "127.0.0.1".to_string(),
+            bind_port: studio_port,
+        },
         simnets: vec![SimnetConfig {
             offline_mode: true,
             remote_rpc_url: None,
@@ -119,6 +154,7 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
     Ok(SurfnetHandle {
         simnet_commands_tx: handle_tx,
         _thread_handle: thread_handle,
+        rpc_url,
     })
 }
 
