@@ -95,7 +95,7 @@ just run --output yaml --output-file results.yaml
 
 ## Status
 
-| SIMD | Description                                   | Test                                                                              |
+| SIMD | Description                                   | Tested                                                                            |
 | ---- | --------------------------------------------- | --------------------------------------------------------------------------------- |
 | 0033 | Timely Vote Credits                           | -                                                                                 |
 | 0047 | Syscall and Sysvar for last restart slot      | -                                                                                 |
@@ -143,7 +143,7 @@ just run --output yaml --output-file results.yaml
 | 0223 | Removes Accounts Delta Hash                   | -                                                                                 |
 | 0242 | Static Nonce Account Only                     | -                                                                                 |
 | 0256 | Increase Block Limits to 60M CUs              | -                                                                                 |
-| 0266 | p-token: Efficient Token program              | [Needs LiteSVM fix for Surfpool](https://github.com/LiteSVM/litesvm/pull/310)     |
+| 0266 | p-token: Efficient Token program              | yes [Needs LiteSVM fix for Surfpool](https://github.com/LiteSVM/litesvm/pull/310) |
 | 0267 | Sets rent_epoch to a constant in the VM       | -                                                                                 |
 | 0268 | Raise CPI Nesting Limit                       | -                                                                                 |
 | 0321 | VM Register 2 Instruction Data Pointer        | -                                                                                 |
