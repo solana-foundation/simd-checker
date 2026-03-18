@@ -92,3 +92,63 @@ just run --output yaml --output-file results.yaml
      test:
        location: "crates/tests/src/simd_XXXX.rs"
    ```
+
+## Status
+
+| SIMD | Description                                   | Test                                                                              |
+| ---- | --------------------------------------------- | --------------------------------------------------------------------------------- |
+| 0033 | Timely Vote Credits                           | -                                                                                 |
+| 0047 | Syscall and Sysvar for last restart slot      | -                                                                                 |
+| 0049 | Syscall for remaining compute units           | -                                                                                 |
+| 0075 | Precompile for verifying secp256r1 sig.       | -                                                                                 |
+| 0079 | Allow Commission Decrease at Any Time         | -                                                                                 |
+| 0083 | Relax Entry Constraints                       | -                                                                                 |
+| 0084 | Disable rent fees collection                  | -                                                                                 |
+| 0085 | Additional Fee-Collector Constraints          | -                                                                                 |
+| 0089 | Programify Feature Gate Program               | -                                                                                 |
+| 0093 | Disable Bpf loader V2 program deployment      | -                                                                                 |
+| 0096 | Reward full priority fee to validator         | -                                                                                 |
+| 0105 | Maintain Dynamic Set of Reserved Account Keys | -                                                                                 |
+| 0118 | Partitioned Epoch Rewards Distribution        | -                                                                                 |
+| 0127 | Get-Sysvar Syscall                            | -                                                                                 |
+| 0128 | Migrate Address Lookup Table to Core BPF      | -                                                                                 |
+| 0129 | Alt_BN128 Syscalls - Simplified Error Code    | -                                                                                 |
+| 0133 | Syscall Get-Epoch-Stake                       | -                                                                                 |
+| 0137 | EC Syscalls - Abort on Unsupported Curve/Ops  | -                                                                                 |
+| 0138 | Deprecate legacy vote instructions            | -                                                                                 |
+| 0140 | Migrate Config to Core BPF                    | -                                                                                 |
+| 0148 | MoveStake and MoveLamports Instructions       | -                                                                                 |
+| 0152 | Precompiles                                   | -                                                                                 |
+| 0153 | ZK ElGamal Proof Program                      | -                                                                                 |
+| 0159 | Relax Precompile Failure Constraint           | -                                                                                 |
+| 0162 | Remove Accounts `is_executable` Flag Checks   | -                                                                                 |
+| 0163 | Lift the CPI caller restriction               | -                                                                                 |
+| 0166 | SBPF Dynamic stack frames                     | -                                                                                 |
+| 0170 | Reserve minimal CUs for builtins              | -                                                                                 |
+| 0173 | SBPF instruction encoding improvements        | -                                                                                 |
+| 0174 | SBPF arithmetics improvements                 | -                                                                                 |
+| 0175 | Disable Partitioned Rent Updates              | -                                                                                 |
+| 0178 | SBPF Static Syscalls                          | -                                                                                 |
+| 0182 | Consume requested CUs for sBPF failures       | -                                                                                 |
+| 0183 | Skip Rent Rewrites                            | -                                                                                 |
+| 0185 | Vote Account v4                               | -                                                                                 |
+| 0189 | SBPF stricter ELF headers                     | -                                                                                 |
+| 0194 | Deprecate Rent Exemption Threshold            | yes [Needs LiteSVM fix for Surfpool](https://github.com/LiteSVM/litesvm/pull/307) |
+| 0196 | Migrate Stake to Core BPF                     | -                                                                                 |
+| 0207 | Raise Block Limits to 50M CUs                 | -                                                                                 |
+| 0215 | Homomorphic Hashing of Account State          | -                                                                                 |
+| 0219 | Stricter ABI and Runtime Constraints          | -                                                                                 |
+| 0220 | Snapshots use Accounts Lattice Hash           | -                                                                                 |
+| 0222 | Fix alt_bn128_pairing syscall length          | -                                                                                 |
+| 0223 | Removes Accounts Delta Hash                   | -                                                                                 |
+| 0242 | Static Nonce Account Only                     | -                                                                                 |
+| 0256 | Increase Block Limits to 60M CUs              | -                                                                                 |
+| 0266 | p-token: Efficient Token program              | [Needs LiteSVM fix for Surfpool](https://github.com/LiteSVM/litesvm/pull/310)     |
+| 0267 | Sets rent_epoch to a constant in the VM       | -                                                                                 |
+| 0268 | Raise CPI Nesting Limit                       | -                                                                                 |
+| 0321 | VM Register 2 Instruction Data Pointer        | -                                                                                 |
+| 0334 | Fix alt_bn128_pairing syscall length check    | -                                                                                 |
+| 0384 | Alpenglow migration                           | -                                                                                 |
+| 0387 | BLS Pubkey management in vote account         | -                                                                                 |
+| 0406 | Maximum instruction accounts                  | -                                                                                 |
+| 0444 | Relax program data account check in migration | -                                                                                 |
