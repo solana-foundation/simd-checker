@@ -1,5 +1,6 @@
 use crate::{util::hex_encode, RpcContext};
 use anyhow::Result;
+use log::{debug, info};
 use serde_json::json;
 use solana_client::rpc_request::RpcRequest;
 use solana_signer::Signer;
@@ -13,7 +14,7 @@ pub fn deploy_program_surfpool(ctx: &RpcContext, so_path: &str) -> Result<()> {
     let chunk_size = 4 * 1024 * 1024;
     let total_chunks = (so_bytes.len() + chunk_size - 1) / chunk_size;
 
-    println!(
+    info!(
         "Deploying program {} ({} bytes, {} chunks)...",
         program_id,
         so_bytes.len(),
@@ -22,6 +23,12 @@ pub fn deploy_program_surfpool(ctx: &RpcContext, so_path: &str) -> Result<()> {
 
     for (i, chunk) in so_bytes.chunks(chunk_size).enumerate() {
         let offset = i * chunk_size;
+        debug!(
+            "Writing chunk {}/{} (offset {})",
+            i + 1,
+            total_chunks,
+            offset
+        );
         let hex_data = hex_encode(chunk);
 
         let resp: serde_json::Value = ctx.rpc_client.send::<serde_json::Value>(
@@ -41,6 +48,6 @@ pub fn deploy_program_surfpool(ctx: &RpcContext, so_path: &str) -> Result<()> {
         }
     }
 
-    println!("Program {} deployed successfully.", program_id);
+    info!("Program {} deployed successfully.", program_id);
     Ok(())
 }

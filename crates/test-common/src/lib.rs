@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use log::debug;
 use solana_client::rpc_client::RpcClient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -60,6 +61,7 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
     for pubkey in features_to_enable {
         feature_config = feature_config.enable(pubkey);
     }
+    debug!("Surfnet feature config: {:?}", feature_config);
 
     let config = SurfpoolConfig {
         simnets: vec![SimnetConfig {
@@ -101,9 +103,15 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
     // Wait for the surfnet to signal readiness on the events channel.
     loop {
         match simnet_events_rx.recv() {
-            Ok(SimnetEvent::Ready(_)) => break,
+            Ok(SimnetEvent::Ready(_)) => {
+                debug!("Surfnet ready");
+                break;
+            }
             Ok(SimnetEvent::Aborted(msg)) => anyhow::bail!("Surfnet aborted: {msg}"),
-            Ok(_) => continue,
+            Ok(evt) => {
+                debug!("Surfnet event: {:?}", evt);
+                continue;
+            }
             Err(_) => anyhow::bail!("Surfnet event channel closed unexpectedly"),
         }
     }

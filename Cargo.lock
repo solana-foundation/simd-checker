@@ -1358,6 +1358,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "env_logger",
+ "log",
  "serde_json",
  "solana-client",
  "solana-keypair",
@@ -10077,6 +10079,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "crossbeam",
+ "log",
  "program-common",
  "serde",
  "serde_json",

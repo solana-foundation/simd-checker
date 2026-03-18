@@ -1,11 +1,12 @@
 use anyhow::Result;
 use clap::Parser;
+use log::{debug, info};
 use solana_client::{rpc_client::RpcClient, rpc_config::CommitmentConfig};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
-use test_common::{Manifest, RpcContext, TestOutcome, collect_feature_deps, start_surfnet};
+use test_common::{collect_feature_deps, start_surfnet, Manifest, RpcContext, TestOutcome};
 
 use tests::all_tests;
 
@@ -75,7 +76,7 @@ fn resolve_keypair(keypair_arg: &Option<String>, network: &str) -> Result<Keypai
 
 fn load_or_generate_program_keypair(path: &str) -> Result<Keypair> {
     if let Ok(data) = std::fs::read_to_string(path) {
-        println!("Reading keypair at path: {}", path);
+        debug!("Reading keypair at path: {}", path);
         let bytes: Vec<u8> = serde_json::from_str(&data)?;
         let secret: [u8; 32] = bytes[..32].try_into().map_err(|_| {
             anyhow::anyhow!(
@@ -86,7 +87,7 @@ fn load_or_generate_program_keypair(path: &str) -> Result<Keypair> {
         return Ok(Keypair::new_from_array(secret));
     }
 
-    println!("Generating new program keypair at {path}...");
+    debug!("Generating new program keypair at {path}...");
     let kp = Keypair::new();
     let bytes: Vec<u8> = kp.to_bytes().to_vec();
     let json = serde_json::to_string(&bytes)?;
@@ -101,7 +102,7 @@ fn airdrop(rpc_client: &RpcClient, payer: &Keypair) -> Result<()> {
     let balance = rpc_client.get_balance(&payer.pubkey())?;
     let one_sol = 1_000_000_000;
     if balance < one_sol {
-        println!("Airdropping 1 SOL to payer {}...", payer.pubkey());
+        info!("Airdropping 1 SOL to payer {}...", payer.pubkey());
         let sig = rpc_client.request_airdrop(&payer.pubkey(), one_sol)?;
         rpc_client.confirm_transaction(&sig)?;
     }
@@ -110,6 +111,8 @@ fn airdrop(rpc_client: &RpcClient, payer: &Keypair) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    env_logger::init();
+
     let cli = Cli::parse();
 
     let manifest = Manifest::load(Path::new(&cli.manifest))?;
@@ -133,10 +136,15 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
-    println!("Running {} test(s) on {}...\n", entries.len(), cli.network);
+    info!("Running {} test(s) on {}...", entries.len(), cli.network);
 
     let payer = resolve_keypair(&cli.keypair, &cli.network)?;
     let url = rpc_url_for_network(&cli.network);
+    debug!("Resolved RPC URL: {}", url);
+    debug!("Network: {}", cli.network);
+    if let Some(ref f) = cli.filter {
+        debug!("Filter: {}", f);
+    }
     let rpc_client = Arc::new(RpcClient::new_with_commitment(
         &url,
         CommitmentConfig::confirmed(),
@@ -160,6 +168,7 @@ async fn main() -> Result<()> {
         // Start a fresh surfnet for each localnet test
         let surfnet_handle = if cli.network == "localnet" {
             let features = collect_feature_deps(&manifest, id);
+            debug!("Feature deps for {}: {:?}", id, features);
             let handle = start_surfnet(features).await?;
             airdrop(&rpc_client, &payer)?;
             Some(handle)
