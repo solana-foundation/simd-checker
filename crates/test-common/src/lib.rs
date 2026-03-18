@@ -18,10 +18,26 @@ mod util;
 
 pub use manifest::{FeatureConfig, Manifest};
 
+/// Collect the feature pubkey for `simd_id` **and** all its transitive dependencies.
 pub fn collect_feature_deps(manifest: &Manifest, simd_id: &str) -> Vec<Pubkey> {
     let mut pubkeys = Vec::new();
     let mut visited = HashSet::new();
     collect_feature_deps_inner(manifest, simd_id, &mut pubkeys, &mut visited);
+    pubkeys
+}
+
+/// Collect **only** the transitive dependency features for `simd_id`,
+/// excluding `simd_id`'s own feature pubkey.
+pub fn collect_dependency_features(manifest: &Manifest, simd_id: &str) -> Vec<Pubkey> {
+    let mut pubkeys = Vec::new();
+    let mut visited = HashSet::new();
+    // Mark simd_id as visited so its own pubkey is skipped, then walk deps.
+    visited.insert(simd_id.to_string());
+    if let Some(config) = manifest.get(simd_id) {
+        for dep in &config.depends_on {
+            collect_feature_deps_inner(manifest, dep, &mut pubkeys, &mut visited);
+        }
+    }
     pubkeys
 }
 

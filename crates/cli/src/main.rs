@@ -6,7 +6,10 @@ use solana_keypair::Keypair;
 use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
-use test_common::{collect_feature_deps, start_surfnet, Manifest, RpcContext, TestOutcome};
+use test_common::{
+    collect_dependency_features, collect_feature_deps, start_surfnet, Manifest, RpcContext,
+    TestOutcome,
+};
 
 use tests::all_tests;
 
@@ -116,7 +119,7 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let manifest = Manifest::load(Path::new(&cli.manifest))?;
-    let mut tests = all_tests();
+    let tests = all_tests();
 
     // Collect manifest entries, filtered and sorted by SIMD number
     let mut entries: Vec<_> = manifest
@@ -153,11 +156,9 @@ async fn main() -> Result<()> {
     let mut results: Vec<(String, TestOutcome)> = Vec::new();
 
     for (id, config) in &entries {
-        let label = format!("SIMD-{:04} {}", config.number, id);
-
-        let Some(test) = tests.remove(id.as_str()) else {
+        let Some(test) = tests.get(id.as_str()) else {
             results.push((
-                label,
+                format!("SIMD-{:04} {}", config.number, id),
                 TestOutcome::Skip {
                     reason: "No test implementation found".to_string(),
                 },
@@ -167,65 +168,86 @@ async fn main() -> Result<()> {
 
         info!("Starting test {}", id);
 
-        // Start a fresh surfnet for each localnet test
-        let (surfnet_handle, rpc_client) = if cli.network == "localnet" {
-            let features = collect_feature_deps(&manifest, id);
-            debug!("Feature deps for {}: {:?}", id, features);
-            let handle = start_surfnet(features).await?;
-            debug!("Surfnet RPC url: {}", handle.rpc_url);
-            let client = Arc::new(RpcClient::new_with_commitment(
-                &handle.rpc_url,
-                CommitmentConfig::confirmed(),
-            ));
-            airdrop(&client, &payer)?;
-            (Some(handle), client)
+        // For localnet, run two passes: deactivated then activated.
+        // For other networks, run once with the live feature state.
+        let passes: Vec<(&str, Option<Vec<solana_pubkey::Pubkey>>)> = if cli.network == "localnet"
+        {
+            vec![
+                ("deactivated", Some(collect_dependency_features(&manifest, id))),
+                ("activated", Some(collect_feature_deps(&manifest, id))),
+            ]
         } else {
-            (None, Arc::clone(&rpc_client))
+            vec![("live", None)]
         };
 
-        // Handle program deployment/checking
-        let mut resolved_program_id = None;
-        if let Some(deployment) = test.program() {
-            let program_kp = match load_or_generate_program_keypair(&deployment.keypair_path) {
-                Ok(kp) => kp,
-                Err(e) => {
-                    if let Some(h) = surfnet_handle {
-                        h.kill();
-                    }
-                    results.push((
-                        label,
-                        TestOutcome::Fail {
-                            message: format!("Failed to load program keypair: {e}"),
-                        },
-                    ));
-                    continue;
-                }
+        for (pass_name, features) in &passes {
+            let label = if cli.network == "localnet" {
+                format!("SIMD-{:04} {} ({})", config.number, id, pass_name)
+            } else {
+                format!("SIMD-{:04} {}", config.number, id)
             };
 
-            resolved_program_id = Some(program_kp.pubkey());
-        }
+            let (surfnet_handle, rpc_client) = if let Some(features) = features {
+                debug!(
+                    "Feature gates for {} ({}): {:?}",
+                    id, pass_name, features
+                );
+                let handle = start_surfnet(features.clone()).await?;
+                debug!("Surfnet RPC url: {}", handle.rpc_url);
+                let client = Arc::new(RpcClient::new_with_commitment(
+                    &handle.rpc_url,
+                    CommitmentConfig::confirmed(),
+                ));
+                airdrop(&client, &payer)?;
+                (Some(handle), client)
+            } else {
+                (None, Arc::clone(&rpc_client))
+            };
 
-        let ctx = RpcContext {
-            rpc_client: Arc::clone(&rpc_client),
-            payer: payer.insecure_clone(),
-            network_name: cli.network.clone(),
-            program_id: resolved_program_id.expect("Could not resolve program id"),
-            feature_gate: config.feature_activation.address,
-        };
-        if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
+            // Handle program deployment/checking
+            let mut resolved_program_id = None;
+            if let Some(deployment) = test.program() {
+                let program_kp = match load_or_generate_program_keypair(&deployment.keypair_path) {
+                    Ok(kp) => kp,
+                    Err(e) => {
+                        if let Some(h) = surfnet_handle {
+                            h.kill();
+                        }
+                        results.push((
+                            label,
+                            TestOutcome::Fail {
+                                message: format!("Failed to load program keypair: {e}"),
+                            },
+                        ));
+                        continue;
+                    }
+                };
+
+                resolved_program_id = Some(program_kp.pubkey());
+            }
+
+            let ctx = RpcContext {
+                rpc_client: Arc::clone(&rpc_client),
+                payer: payer.insecure_clone(),
+                network_name: cli.network.clone(),
+                program_id: resolved_program_id.expect("Could not resolve program id"),
+                feature_gate: config.feature_activation.address,
+            };
+            if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
+                if let Some(h) = surfnet_handle {
+                    h.kill();
+                }
+                results.push((label, err_outcome));
+                continue;
+            }
+            let outcome = test.run_rpc(ctx).await?;
+
             if let Some(h) = surfnet_handle {
                 h.kill();
             }
-            results.push((label, err_outcome));
-            continue;
-        }
-        let outcome = test.run_rpc(ctx).await?;
 
-        if let Some(h) = surfnet_handle {
-            h.kill();
+            results.push((label, outcome));
         }
-
-        results.push((label, outcome));
     }
 
     // Print results table
