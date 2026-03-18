@@ -22,8 +22,12 @@ impl SimdTest for Simd0194Test {
 
         let program_id = ctx.program_id;
         let feature_id = ctx.feature_gate;
-        let expect_activated = false;
-        let expect_activated_bit = if expect_activated { 1 } else { 0 };
+        // Check feature activation
+        let is_activated = match ctx.rpc_client.get_account(&feature_id) {
+            Ok(account) => account.data.len() >= 9 && account.data[0] != 0,
+            Err(_) => false,
+        };
+        let expect_activated_bit = if is_activated { 1 } else { 0 };
 
         let instruction = Instruction::new_with_bytes(
             program_id,
