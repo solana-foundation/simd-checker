@@ -7,8 +7,8 @@ use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
 use test_common::{
-    collect_dependency_features, collect_feature_deps, start_surfnet, Manifest, RpcContext,
-    TestOutcome,
+    collect_dependency_features, collect_feature_deps, start_surfnet, ActivationContext, Manifest,
+    RpcContext, TestOutcome,
 };
 
 use tests::all_tests;
@@ -153,7 +153,7 @@ async fn main() -> Result<()> {
         CommitmentConfig::confirmed(),
     ));
 
-    let mut results: Vec<(String, TestOutcome)> = Vec::new();
+    let mut results: Vec<(String, TestOutcome, Option<ActivationContext>)> = Vec::new();
 
     for (id, config) in &entries {
         let Some(test) = tests.get(id.as_str()) else {
@@ -162,6 +162,7 @@ async fn main() -> Result<()> {
                 TestOutcome::Skip {
                     reason: "No test implementation found".to_string(),
                 },
+                None,
             ));
             continue;
         };
@@ -170,17 +171,18 @@ async fn main() -> Result<()> {
 
         // For localnet, run two passes: deactivated then activated.
         // For other networks, run once with the live feature state.
-        let passes: Vec<(&str, Option<Vec<solana_pubkey::Pubkey>>)> = if cli.network == "localnet"
-        {
-            vec![
-                ("deactivated", Some(collect_dependency_features(&manifest, id))),
-                ("activated", Some(collect_feature_deps(&manifest, id))),
-            ]
-        } else {
-            vec![("live", None)]
-        };
+        let passes: Vec<(&str, bool, Option<Vec<solana_pubkey::Pubkey>>)> =
+            if cli.network == "localnet" {
+                vec![
+                    ("deactivated", false, Some(collect_dependency_features(&manifest, id))),
+                    ("activated", true, Some(collect_feature_deps(&manifest, id))),
+                ]
+            } else {
+                let activated = config.feature_activation.is_activated_on(&cli.network);
+                vec![("live", activated, None)]
+            };
 
-        for (pass_name, features) in &passes {
+        for (pass_name, expect_activated, features) in &passes {
             let label = if cli.network == "localnet" {
                 format!("SIMD-{:04} {} ({})", config.number, id, pass_name)
             } else {
@@ -218,6 +220,7 @@ async fn main() -> Result<()> {
                             TestOutcome::Fail {
                                 message: format!("Failed to load program keypair: {e}"),
                             },
+                            None,
                         ));
                         continue;
                     }
@@ -232,28 +235,37 @@ async fn main() -> Result<()> {
                 network_name: cli.network.clone(),
                 program_id: resolved_program_id.expect("Could not resolve program id"),
                 feature_gate: config.feature_activation.address,
+                expect_activated: *expect_activated,
             };
             if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
                 if let Some(h) = surfnet_handle {
                     h.kill();
                 }
-                results.push((label, err_outcome));
+                results.push((label, err_outcome, None));
                 continue;
             }
+
+            // Detect on-chain activation and build context
+            let detected = test.detect_feature_activated(&ctx);
+            let activation = ActivationContext {
+                expected: *expect_activated,
+                detected: Some(detected),
+            };
+
             let outcome = test.run_rpc(ctx).await?;
 
             if let Some(h) = surfnet_handle {
                 h.kill();
             }
 
-            results.push((label, outcome));
+            results.push((label, outcome, Some(activation)));
         }
     }
 
     // Print results table
     println!();
     let mut any_fail = false;
-    for (label, outcome) in &results {
+    for (label, outcome, activation) in &results {
         let status = match outcome {
             TestOutcome::Pass { .. } => "[PASS]",
             TestOutcome::Fail { .. } => {
@@ -262,17 +274,27 @@ async fn main() -> Result<()> {
             }
             TestOutcome::Skip { .. } => "[SKIP]",
         };
-        println!("{:6} {} - {}", status, label, outcome.message());
+        let activation_str = match activation {
+            Some(ctx) => format!(" [{}]", ctx),
+            None => String::new(),
+        };
+        println!(
+            "{:6} {}{} - {}",
+            status,
+            label,
+            activation_str,
+            outcome.message()
+        );
     }
 
     let pass_count = results
         .iter()
-        .filter(|(_, o)| matches!(o, TestOutcome::Pass { .. }))
+        .filter(|(_, o, _)| matches!(o, TestOutcome::Pass { .. }))
         .count();
-    let fail_count = results.iter().filter(|(_, o)| o.is_fail()).count();
+    let fail_count = results.iter().filter(|(_, o, _)| o.is_fail()).count();
     let skip_count = results
         .iter()
-        .filter(|(_, o)| matches!(o, TestOutcome::Skip { .. }))
+        .filter(|(_, o, _)| matches!(o, TestOutcome::Skip { .. }))
         .count();
 
     println!(

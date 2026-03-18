@@ -68,6 +68,20 @@ pub struct FeatureActivationConfig {
     pub mainnet: Option<NetworkActivationConfig>,
 }
 
+impl FeatureActivationConfig {
+    /// Returns whether the feature is expected to be activated on the given network,
+    /// based on the presence of an `epoch` value in the manifest.
+    pub fn is_activated_on(&self, network: &str) -> bool {
+        let config = match network {
+            "devnet" => self.devnet.as_ref(),
+            "testnet" => self.testnet.as_ref(),
+            "mainnet" => self.mainnet.as_ref(),
+            _ => None,
+        };
+        config.and_then(|c| c.epoch).is_some()
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct NetworkActivationConfig {
     pub epoch: Option<u64>,

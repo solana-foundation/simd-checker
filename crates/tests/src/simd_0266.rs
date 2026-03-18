@@ -88,11 +88,7 @@ impl SimdTest for Simd0266Test {
         let payer_pubkey = ctx.payer.pubkey();
         let token_program = token_program_id();
 
-        // Check feature activation
-        let is_activated = match ctx.rpc_client.get_account(&ctx.feature_gate) {
-            Ok(account) => account.data.len() >= 9 && account.data[0] != 0,
-            Err(_) => false,
-        };
+        let is_activated = self.detect_feature_activated(&ctx);
 
         // --- Set up token infrastructure ---
         let mint = Keypair::new();
@@ -265,7 +261,7 @@ impl SimdTest for Simd0266Test {
             results.push(format!("Batch (2x transfer): {batch_cus} CUs"));
 
             // Test batch transfer via CPI (through on-chain program)
-            let expect_activated: u8 = 1;
+            let expect_activated_byte: u8 = 1;
             let amount: u64 = 50;
             let (cpi_err, cpi_batch_cus) = simulate_cu(
                 &ctx,
@@ -273,7 +269,7 @@ impl SimdTest for Simd0266Test {
                     ctx.program_id,
                     &{
                         let mut d = [0u8; 9];
-                        d[0] = expect_activated;
+                        d[0] = expect_activated_byte;
                         d[1..9].copy_from_slice(&amount.to_le_bytes());
                         d
                     },
@@ -319,7 +315,7 @@ impl SimdTest for Simd0266Test {
         }
 
         Ok(TestOutcome::Pass {
-            message: format!("activated={is_activated} | {}", results.join(" | ")),
+            message: results.join(" | "),
         })
     }
 }

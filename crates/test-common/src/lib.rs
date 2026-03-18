@@ -174,6 +174,30 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
     })
 }
 
+#[derive(Debug, Clone)]
+pub struct ActivationContext {
+    /// Whether the feature was expected to be activated for this test run.
+    pub expected: bool,
+    /// Whether the feature was detected as activated on-chain (if checked).
+    pub detected: Option<bool>,
+}
+
+impl std::fmt::Display for ActivationContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let detected_str = match self.detected {
+            Some(true) => "activated",
+            Some(false) => "not activated",
+            None => "unknown",
+        };
+        write!(
+            f,
+            "expected={}, detected={}",
+            if self.expected { "activated" } else { "not activated" },
+            detected_str,
+        )
+    }
+}
+
 #[derive(Debug)]
 pub enum TestOutcome {
     Pass { message: String },
@@ -214,6 +238,8 @@ pub struct RpcContext {
     pub network_name: String,
     pub program_id: Pubkey,
     pub feature_gate: Pubkey,
+    /// Whether the feature is expected to be activated for this test run.
+    pub expect_activated: bool,
 }
 
 impl RpcContext {
@@ -234,7 +260,7 @@ pub trait SimdTest: Send + Sync {
     fn deploy_or_skip_program(&self, ctx: &RpcContext) -> Result<(), TestOutcome> {
         let Some(ProgramDeployment { so_path, .. }) = self.program() else {
             return Err(TestOutcome::Fail {
-                message: format!("No program binary found"),
+                message: "No program binary found".to_string(),
             });
         };
         if ctx.network_name == "localnet" {
@@ -254,6 +280,14 @@ pub trait SimdTest: Send + Sync {
             })
         } else {
             Ok(())
+        }
+    }
+
+    /// Detect whether the feature gate is activated on-chain.
+    fn detect_feature_activated(&self, ctx: &RpcContext) -> bool {
+        match ctx.rpc_client.get_account(&ctx.feature_gate) {
+            Ok(account) => account.data.len() >= 9 && account.data[0] != 0,
+            Err(_) => false,
         }
     }
 
