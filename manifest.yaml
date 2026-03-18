@@ -4,6 +4,12 @@ simd_0033:
     number: 33
     feature_activation:
         address: tvcF6b1TRz353zKuhBjinZkKzjmihXmBAHJdjNYw1sQ
+        devnet:
+            epoch: 735
+        testnet:
+            epoch: 675
+        mainnet:
+            epoch: 703
     depends_on: []
 simd_0047:
     description: "Syscall and Sysvar for last restart slot"
@@ -11,6 +17,12 @@ simd_0047:
     number: 47
     feature_activation:
         address: HooKD5NC9QNxk25QuzCssB8ecrEzGt6eXEPBUxWp1LaR
+        devnet:
+            epoch: 726
+        testnet:
+            epoch: 670
+        mainnet:
+            epoch: 653
     depends_on: []
 simd_0049:
     description: "Syscall for remaining compute units"
@@ -25,6 +37,12 @@ simd_0075:
     number: 75
     feature_activation:
         address: srremy31J5Y25FrAApwVb9kZcfXbusYMMsvTK9aWv5q
+        devnet:
+            epoch: 881
+        testnet:
+            epoch: 783
+        mainnet:
+            epoch: 800
     depends_on: []
 simd_0079:
     description: "Allow Commission Decrease at Any Time"
@@ -32,6 +50,12 @@ simd_0079:
     number: 79
     feature_activation:
         address: decoMktMcnmiq6t3u7g5BfgcQu91nKZr6RvMYf9z1Jb
+        devnet:
+            epoch: 737
+        testnet:
+            epoch: 676
+        mainnet:
+            epoch: 704
     depends_on: []
 simd_0083:
     description: "Relax Entry Constraints"
@@ -46,6 +70,12 @@ simd_0084:
     number: 84
     feature_activation:
         address: CJzY83ggJHqPGDq8VisV3U91jDJLuEaALZooBrXtnnLU
+        devnet:
+            epoch: 825
+        testnet:
+            epoch: 746
+        mainnet:
+            epoch: 757
     depends_on: []
 simd_0085:
     description: "Additional Fee-Collector Constraints"
@@ -53,6 +83,12 @@ simd_0085:
     number: 85
     feature_activation:
         address: prpFrMtgNmzaNzkPJg9o753fVvbHKqNrNTm76foJ2wm
+        devnet:
+            epoch: 648
+        testnet:
+            epoch: 597
+        mainnet:
+            epoch: 599
     depends_on: []
 simd_0089:
     description: "Programify Feature Gate Program"
@@ -60,6 +96,12 @@ simd_0089:
     number: 89
     feature_activation:
         address: 4eohviozzEeivk1y9UbrnekbAFMDQyJz5JjA9Y6gyvky
+        devnet:
+            epoch: 816
+        testnet:
+            epoch: 746
+        mainnet:
+            epoch: 753
     depends_on: []
 simd_0093:
     description: "Disable Bpf loader V2 program deployment"
@@ -67,6 +109,12 @@ simd_0093:
     number: 93
     feature_activation:
         address: 7WeS1vfPRgeeoXArLh7879YcB9mgE9ktjPDtajXeWfXn
+        devnet:
+            epoch: 660
+        testnet:
+            epoch: 609
+        mainnet:
+            epoch: 602
     depends_on: []
 simd_0096:
     description: "Reward full priority fee to validator"
@@ -74,6 +122,12 @@ simd_0096:
     number: 96
     feature_activation:
         address: 3opE3EzAKnUftUDURkzMgwpNgimBAypW1mNDYH4x4Zg7
+        devnet:
+            epoch: 805
+        testnet:
+            epoch: 716
+        mainnet:
+            epoch: 742
     depends_on: []
 simd_0105:
     description: "Maintain Dynamic Set of Reserved Account Keys"
@@ -81,6 +135,12 @@ simd_0105:
     number: 105
     feature_activation:
         address: 8U4skmMVnF6k2kMvrWbQuRUT3qQSiTYpSjqmhmgfthZu
+        devnet:
+            epoch: 820
+        testnet:
+            epoch: 745
+        mainnet:
+            epoch: 744
     depends_on: []
 simd_0118:
     description: "Partitioned Epoch Rewards Distribution"
@@ -88,6 +148,12 @@ simd_0118:
     number: 118
     feature_activation:
         address: PERzQrt5gBD1XEe2c9XdFWqwgHY3mr7cYWbm5V772V8
+        devnet:
+            epoch: 790
+        testnet:
+            epoch: 706
+        mainnet:
+            epoch: 707
     depends_on: []
 simd_0127:
     description: "Get-Sysvar Syscall"
@@ -95,6 +161,12 @@ simd_0127:
     number: 127
     feature_activation:
         address: CLCoTADvV64PSrnR6QXty6Fwrt9Xc6EdxSJE4wLRePjq
+        devnet:
+            epoch: 806
+        testnet:
+            epoch: 746
+        mainnet:
+            epoch: 746
     depends_on: []
 simd_0128:
     description: "Migrate Address Lookup Table to Core BPF"
@@ -102,6 +174,12 @@ simd_0128:
     number: 128
     feature_activation:
         address: C97eKZygrkU4JxJsZdjgbUY7iQR7rKTr4NyDWo2E5pRm
+        devnet:
+            epoch: 849
+        testnet:
+            epoch: 756
+        mainnet:
+            epoch: 763
     depends_on: []
 simd_0129:
     description: "Alt_BN128 Syscalls - Simplified Error Code"
@@ -109,6 +187,12 @@ simd_0129:
     number: 129
     feature_activation:
         address: JDn5q3GBeqzvUa7z67BbmVHVdE3EbUAjvFep3weR3jxX
+        devnet:
+            epoch: 715
+        testnet:
+            epoch: 658
+        mainnet:
+            epoch: 636
     depends_on: []
 simd_0133:
     description: "Syscall Get-Epoch-Stake"
@@ -116,6 +200,12 @@ simd_0133:
     number: 133
     feature_activation:
         address: FKe75t4LXxGaQnVHdUKM6DSFifVVraGZ8LyNo7oPwy1Z
+        devnet:
+            epoch: 853
+        testnet:
+            epoch: 760
+        mainnet:
+            epoch: 767
     depends_on: []
 simd_0137:
     description: "EC Syscalls - Abort on Unsupported Curve/Ops"
@@ -123,6 +213,12 @@ simd_0137:
     number: 137
     feature_activation:
         address: FuS3FPfJDKSNot99ECLXtp3rueq36hMNStJkPJwWodLh
+        devnet:
+            epoch: 793
+        testnet:
+            epoch: 709
+        mainnet:
+            epoch: 722
     depends_on: []
 simd_0138:
     description: "Deprecate legacy vote instructions"
@@ -130,6 +226,12 @@ simd_0138:
     number: 138
     feature_activation:
         address: 6Uf8S75PVh91MYgPQSHnjRAPQq6an5BDv9vomrCwDqLe
+        devnet:
+            epoch: 730
+        testnet:
+            epoch: 671
+        mainnet:
+            epoch: 655
     depends_on: []
 simd_0140:
     description: "Migrate Config to Core BPF"
@@ -137,6 +239,12 @@ simd_0140:
     number: 140
     feature_activation:
         address: 2Fr57nzzkLYXW695UdDxDeR5fhnZWSttZeZYemrnpGFV
+        devnet:
+            epoch: 817
+        testnet:
+            epoch: 746
+        mainnet:
+            epoch: 754
     depends_on: []
 simd_0148:
     description: "MoveStake and MoveLamports Instructions"
@@ -144,6 +252,12 @@ simd_0148:
     number: 148
     feature_activation:
         address: 7bTK6Jis8Xpfrs8ZoUfiMDPazTcdPcTWheZFJTA5Z6X4
+        devnet:
+            epoch: 798
+        testnet:
+            epoch: 712
+        mainnet:
+            epoch: 727
     depends_on: []
 simd_0152:
     description: "Precompiles"
@@ -151,6 +265,12 @@ simd_0152:
     number: 152
     feature_activation:
         address: ed9tNscbWLYBooxWA7FE2B5KHWs8A6sxfY8EzezEcoo
+        devnet:
+            epoch: 792
+        testnet:
+            epoch: 708
+        mainnet:
+            epoch: 715
     depends_on: []
 simd_0153:
     description: "ZK ElGamal Proof Program"
@@ -158,6 +278,12 @@ simd_0153:
     number: 153
     feature_activation:
         address: zkhiy5oLowR7HY4zogXjCjeMXyruLqBwSWH21qcFtnv
+        devnet:
+            epoch: 801
+        testnet:
+            epoch: 714
+        mainnet:
+            epoch: 731
     depends_on: []
 simd_0159:
     description: "Relax Precompile Failure Constraint"
@@ -165,6 +291,12 @@ simd_0159:
     number: 159
     feature_activation:
         address: 9ypxGLzkMxi89eDerRKXWDXe44UY2z4hBig4mDhNq5Dp
+        devnet:
+            epoch: 847
+        testnet:
+            epoch: 755
+        mainnet:
+            epoch: 761
     depends_on: []
 simd_0162:
     description: "Remove Accounts `is_executable` Flag Checks"
@@ -172,6 +304,12 @@ simd_0162:
     number: 162
     feature_activation:
         address: FXs1zh47QbNnhXcnB6YiAQoJ4sGB91tKF3UFHLcKT7PM
+        devnet:
+            epoch: 903
+        testnet:
+            epoch: 798
+        mainnet:
+            epoch: 812
     depends_on: [simd_0093]
 simd_0163:
     description: "Lift the CPI caller restriction"
@@ -186,6 +324,12 @@ simd_0166:
     number: 166
     feature_activation:
         address: JE86WkYvTrzW8HgNmrHY7dFYpCmSptUpKupbo2AdQ9cG
+        devnet:
+            epoch: 902
+        testnet:
+            epoch: 797
+        mainnet:
+            epoch: 809
     depends_on: []
 simd_0170:
     description: "Reserve minimal CUs for builtins"
@@ -193,6 +337,12 @@ simd_0170:
     number: 170
     feature_activation:
         address: C9oAhLxDBm3ssWtJx1yBGzPY55r2rArHmN1pbQn6HogH
+        devnet:
+            epoch: 842
+        testnet:
+            epoch: 750
+        mainnet:
+            epoch: 759
     depends_on: []
 simd_0173:
     description: "SBPF instruction encoding improvements"
@@ -200,6 +350,12 @@ simd_0173:
     number: 173
     feature_activation:
         address: F6UVKh1ujTEFK3en2SyAL3cdVnqko1FVEXWhmdLRu6WP
+        devnet:
+            epoch: 919
+        testnet:
+            epoch: 815
+        mainnet:
+            epoch: 826
     depends_on: [simd_0161]
 simd_0174:
     description: "SBPF arithmetics improvements"
@@ -207,6 +363,12 @@ simd_0174:
     number: 174
     feature_activation:
         address: F6UVKh1ujTEFK3en2SyAL3cdVnqko1FVEXWhmdLRu6WP
+        devnet:
+            epoch: 919
+        testnet:
+            epoch: 815
+        mainnet:
+            epoch: 826
     depends_on: [simd_0161]
 simd_0175:
     description: "Disable Partitioned Rent Updates"
@@ -214,6 +376,12 @@ simd_0175:
     number: 175
     feature_activation:
         address: 2B2SBNbUcr438LtGXNcJNBP2GBSxjx81F945SdSkUSfC
+        devnet:
+            epoch: 896
+        testnet:
+            epoch: 795
+        mainnet:
+            epoch: 809
     depends_on: []
 simd_0178:
     description: "SBPF Static Syscalls"
@@ -228,6 +396,12 @@ simd_0182:
     number: 182
     feature_activation:
         address: B7H2caeia4ZFcpE3QcgMqbiWiBtWrdBRBSJ1DY6Ktxbq
+        devnet:
+            epoch: 843
+        testnet:
+            epoch: 752
+        mainnet:
+            epoch: 760
     depends_on: []
 simd_0183:
     description: "Skip Rent Rewrites"
@@ -235,6 +409,12 @@ simd_0183:
     number: 183
     feature_activation:
         address: CGB2jM8pwZkeeiXQ66kBMyBR6Np61mggL7XUsmLjVcrw
+        devnet:
+            epoch: 824
+        testnet:
+            epoch: 746
+        mainnet:
+            epoch: 756
     depends_on: []
 simd_0185:
     description: "Vote Account v4"
@@ -242,6 +422,10 @@ simd_0185:
     number: 185
     feature_activation:
         address: Gx4XFcrVMt4HUvPzTpTSVkdDVgcDSjKhDN1RqRS6KDuZ
+        devnet:
+            epoch: 1034
+        testnet:
+            epoch: 911
     depends_on: []
 simd_0189:
     description: "SBPF stricter ELF headers"
@@ -257,9 +441,9 @@ simd_0194:
     feature_activation:
         address: rent6iVy6PDoViPBeJ6k5EJQrkj62h7DPyLbWGHwjrC
         devnet:
-            epoch: 1023
+            epoch: 1024
         testnet:
-            epoch: 907
+            epoch: 908
     depends_on: []
     test:
         location: "crates/tests/src/simd_0194.rs"
@@ -269,6 +453,12 @@ simd_0196:
     number: 196
     feature_activation:
         address: 6M4oQ6eXneVhtLoiAr4yRYQY43eVLjrKbiDZDJc892yk
+        devnet:
+            epoch: 918
+        testnet:
+            epoch: 814
+        mainnet:
+            epoch: 824
     depends_on: []
 simd_0207:
     description: "Raise Block Limits to 50M CUs"
@@ -276,6 +466,12 @@ simd_0207:
     number: 207
     feature_activation:
         address: 5oMCU3JPaFLr8Zr4ct7yFA7jdk6Mw1RmB8K4u9ZbS42z
+        devnet:
+            epoch: 857
+        testnet:
+            epoch: 764
+        mainnet:
+            epoch: 771
     depends_on: []
 simd_0215:
     description: "Homomorphic Hashing of Account State"
@@ -283,6 +479,12 @@ simd_0215:
     number: 215
     feature_activation:
         address: LTHasHQX6661DaDD4S6A2TFi6QBuiwXKv66fB1obfHq
+        devnet:
+            epoch: 893
+        testnet:
+            epoch: 789
+        mainnet:
+            epoch: 805
     depends_on: []
 simd_0219:
     description: "Stricter ABI and Runtime Constraints"
@@ -297,6 +499,12 @@ simd_0220:
     number: 220
     feature_activation:
         address: LTsNAP8h1voEVVToMNBNqoiNQex4aqfUrbFhRH3mSQ2
+        devnet:
+            epoch: 911
+        testnet:
+            epoch: 810
+        mainnet:
+            epoch: 819
     depends_on: []
 simd_0222:
     description: "Fix alt-bn128 multiplication syscall length"
@@ -304,6 +512,12 @@ simd_0222:
     number: 222
     feature_activation:
         address: bn2puAyxUx6JUabAxYdKdJ5QHbNNmKw8dCGuGCyRrFN
+        devnet:
+            epoch: 921
+        testnet:
+            epoch: 817
+        mainnet:
+            epoch: 837
     depends_on: []
 simd_0223:
     description: "Removes Accounts Delta Hash"
@@ -311,6 +525,12 @@ simd_0223:
     number: 223
     feature_activation:
         address: LTdLt9Ycbyoipz5fLysCi1NnDnASsZfmJLJXts5ZxZz
+        devnet:
+            epoch: 895
+        testnet:
+            epoch: 794
+        mainnet:
+            epoch: 808
     depends_on: []
 simd_0242:
     description: "Static Nonce Account Only"
@@ -318,6 +538,12 @@ simd_0242:
     number: 242
     feature_activation:
         address: 7VVhpg5oAjAmnmz1zCcSHb2Z9ecZB2FQqpnEwReka9Zm
+        devnet:
+            epoch: 981
+        testnet:
+            epoch: 873
+        mainnet:
+            epoch: 891
     depends_on: []
 simd_0256:
     description: "Increase Block Limits to 60M CUs"
@@ -325,6 +551,12 @@ simd_0256:
     number: 256
     feature_activation:
         address: 6oMCUgfY6BzZ6jwB681J6ju5Bh6CjVXbd7NeWYqiXBSu
+        devnet:
+            epoch: 916
+        testnet:
+            epoch: 813
+        mainnet:
+            epoch: 823
     depends_on: []
 simd_0266:
     description: "p-token: Efficient Token program"
@@ -341,6 +573,12 @@ simd_0267:
     number: 267
     feature_activation:
         address: RENtePQcDLrAbxAsP3k8dwVcnNYQ466hi2uKvALjnXx
+        devnet:
+            epoch: 892
+        testnet:
+            epoch: 785
+        mainnet:
+            epoch: 802
     depends_on: []
 simd_0268:
     description: "Raise CPI Nesting Limit"
@@ -355,6 +593,10 @@ simd_0321:
     number: 321
     feature_activation:
         address: 5xXZc66h4UdB6Yq7FzdBxBiRAFMMScMLwHxk2QZDaNZL
+        devnet:
+            epoch: 1035
+        testnet:
+            epoch: 912
     depends_on: []
 simd_0334:
     description: "Fix alt_bn128_pairing syscall length check"
@@ -362,6 +604,12 @@ simd_0334:
     number: 334
     feature_activation:
         address: bnYzodLwmybj7e1HAe98yZrdJTd7we69eMMLgCXqKZm
+        devnet:
+            epoch: 1016
+        testnet:
+            epoch: 907
+        mainnet:
+            epoch: 943
     depends_on: []
 simd_0384:
     description: "Alpenglow migration"
@@ -390,4 +638,6 @@ simd_0444:
     number: 444
     feature_activation:
         address: rexav5eNTUSNT1K2N7cfRjnthwhcP5BC25v2tA4rW4h
+        testnet:
+            epoch: 929
     depends_on: []
