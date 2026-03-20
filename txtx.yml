@@ -4,7 +4,7 @@ id: simd-checker
 runbooks:
   - name: deployment
     description: Deploy programs
-    location: runbooks/deployment-flows
+    location: runbooks/deployment
     state:
       location: runbooks/state
 environments:
