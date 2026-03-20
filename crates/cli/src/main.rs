@@ -326,6 +326,9 @@ async fn main() -> Result<()> {
                     "{:6} {}{} - {}",
                     status, result.label, activation_str, result.message,
                 );
+                for tx in &result.tx_signatures {
+                    println!("       tx {}: {}", tx.label, tx.signature);
+                }
             }
             println!(
                 "\nSummary: {} passed, {} failed, {} skipped",

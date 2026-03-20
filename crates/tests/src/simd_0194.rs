@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use solana_message::AccountMeta;
-use test_common::{RpcContext, SimdTest, TestOutcome};
+use test_common::{LabeledTransactionSignature, RpcContext, SimdTest, TestOutcome};
 
 pub struct Simd0194Test;
 
@@ -38,9 +38,14 @@ impl SimdTest for Simd0194Test {
         match ctx.rpc_client.send_and_confirm_transaction(&transaction) {
             Ok(sig) => Ok(TestOutcome::Pass {
                 message: format!("Transaction confirmed: {sig}"),
+                tx_signatures: vec![LabeledTransactionSignature {
+                    label: "feature-check".to_string(),
+                    signature: sig.to_string(),
+                }],
             }),
             Err(e) => Ok(TestOutcome::Fail {
                 message: format!("Transaction failed: {e}"),
+                tx_signatures: vec![],
             }),
         }
     }

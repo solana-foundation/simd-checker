@@ -209,9 +209,17 @@ impl std::fmt::Display for ActivationContext {
 
 #[derive(Debug)]
 pub enum TestOutcome {
-    Pass { message: String },
-    Fail { message: String },
-    Skip { reason: String },
+    Pass {
+        message: String,
+        tx_signatures: Vec<LabeledTransactionSignature>,
+    },
+    Fail {
+        message: String,
+        tx_signatures: Vec<LabeledTransactionSignature>,
+    },
+    Skip {
+        reason: String,
+    },
 }
 
 impl TestOutcome {
@@ -229,11 +237,25 @@ impl TestOutcome {
 
     pub fn message(&self) -> &str {
         match self {
-            TestOutcome::Pass { message } => message,
-            TestOutcome::Fail { message } => message,
+            TestOutcome::Pass { message, .. } => message,
+            TestOutcome::Fail { message, .. } => message,
             TestOutcome::Skip { reason } => reason,
         }
     }
+
+    pub fn tx_signatures(&self) -> &[LabeledTransactionSignature] {
+        match self {
+            TestOutcome::Pass { tx_signatures, .. } => tx_signatures,
+            TestOutcome::Fail { tx_signatures, .. } => tx_signatures,
+            TestOutcome::Skip { .. } => &[],
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LabeledTransactionSignature {
+    pub label: String,
+    pub signature: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -241,6 +263,8 @@ pub struct TestResult {
     pub label: String,
     pub status: String,
     pub message: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tx_signatures: Vec<LabeledTransactionSignature>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub activation: Option<ActivationContext>,
 }
@@ -260,6 +284,7 @@ impl TestResult {
             label,
             status: status.to_string(),
             message: outcome.message().to_string(),
+            tx_signatures: outcome.tx_signatures().to_vec(),
             activation,
         }
     }
@@ -332,12 +357,14 @@ pub trait SimdTest: Send + Sync {
         let Some(ProgramDeployment { so_path, .. }) = self.program() else {
             return Err(TestOutcome::Fail {
                 message: "No program binary found".to_string(),
+                tx_signatures: vec![],
             });
         };
         if ctx.network_name == "localnet" {
             if let Err(e) = deploy_program_surfpool(&ctx, &so_path) {
                 Err(TestOutcome::Fail {
                     message: format!("Program deployment failed: {e}"),
+                    tx_signatures: vec![],
                 })
             } else {
                 Ok(())
