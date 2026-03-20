@@ -80,14 +80,19 @@ fn find_available_port() -> Result<u16> {
     Ok(listener.local_addr()?.port())
 }
 
-pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHandle> {
-    let (surfnet_svm, simnet_events_rx, geyser_events_rx) =
+pub async fn start_surfnet(
+    features_to_enable: Vec<Pubkey>,
+    features_to_disable: Vec<Pubkey>,
+) -> Result<SurfnetHandle> {
+    let (mut surfnet_svm, simnet_events_rx, geyser_events_rx) =
         surfpool_core::surfnet::svm::SurfnetSvm::default();
 
     let mut feature_config = SvmFeatureConfig::new();
-    for pubkey in features_to_enable {
-        feature_config = feature_config.enable(pubkey);
-    }
+    feature_config.enable = features_to_enable;
+    feature_config.disable = features_to_disable;
+
+    surfnet_svm.apply_feature_config(&feature_config);
+
     debug!("Surfnet feature config: {:?}", feature_config);
 
     let rpc_port = find_available_port()?;
@@ -121,7 +126,6 @@ pub async fn start_surfnet(features_to_enable: Vec<Pubkey>) -> Result<SurfnetHan
             remote_rpc_url: None,
             instruction_profiling_enabled: false,
             max_profiles: 1,
-            feature_config,
             ..Default::default()
         }],
         ..Default::default()

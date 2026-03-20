@@ -180,41 +180,55 @@ async fn main() -> Result<()> {
 
         // For localnet, run two passes: deactivated then activated.
         // For other networks, run once with the live feature state.
-        let passes: Vec<(&str, bool, Option<Vec<solana_pubkey::Pubkey>>)> =
-            if cli.network == "localnet" {
-                vec![
-                    (
-                        "deactivated",
-                        false,
-                        Some(collect_dependency_features(&manifest, id)),
-                    ),
-                    ("activated", true, Some(collect_feature_deps(&manifest, id))),
-                ]
-            } else {
-                let activated = config.feature_activation.is_activated_on(&cli.network);
-                vec![("live", activated, None)]
-            };
+        let passes = if cli.network == "localnet" {
+            vec![
+                (
+                    "deactivated",
+                    false,
+                    Some((
+                        collect_dependency_features(&manifest, id),
+                        vec![config.feature_activation.address],
+                    )),
+                ),
+                (
+                    "activated",
+                    true,
+                    Some((collect_feature_deps(&manifest, id), vec![])),
+                ),
+            ]
+        } else {
+            let activated = config.feature_activation.is_activated_on(&cli.network);
+            vec![("live", activated, None)]
+        };
 
-        for (pass_name, expect_activated, features) in &passes {
+        for (pass_name, expect_activated, features) in passes {
             let label = if cli.network == "localnet" {
                 format!("SIMD-{:04} {} ({})", config.number, id, pass_name)
             } else {
                 format!("SIMD-{:04} {}", config.number, id)
             };
 
-            let (surfnet_handle, rpc_client) = if let Some(features) = features {
-                debug!("Feature gates for {} ({}): {:?}", id, pass_name, features);
-                let handle = start_surfnet(features.clone()).await?;
-                debug!("Surfnet RPC url: {}", handle.rpc_url);
-                let client = Arc::new(RpcClient::new_with_commitment(
-                    &handle.rpc_url,
-                    CommitmentConfig::confirmed(),
-                ));
-                airdrop(&client, &payer)?;
-                (Some(handle), client)
-            } else {
-                (None, Arc::clone(&rpc_client))
-            };
+            let (surfnet_handle, rpc_client) =
+                if let Some((activated_features, deactivated_features)) = features {
+                    debug!(
+                        "Activated feature gates for {} ({}): {:?}",
+                        id, pass_name, activated_features
+                    );
+                    debug!(
+                        "Deactivated feature gates for {} ({}): {:?}",
+                        id, pass_name, deactivated_features
+                    );
+                    let handle = start_surfnet(activated_features, deactivated_features).await?;
+                    debug!("Surfnet RPC url: {}", handle.rpc_url);
+                    let client = Arc::new(RpcClient::new_with_commitment(
+                        &handle.rpc_url,
+                        CommitmentConfig::confirmed(),
+                    ));
+                    airdrop(&client, &payer)?;
+                    (Some(handle), client)
+                } else {
+                    (None, Arc::clone(&rpc_client))
+                };
 
             // Handle program deployment/checking
             let mut resolved_program_id = None;
@@ -242,7 +256,7 @@ async fn main() -> Result<()> {
                 network_name: cli.network.clone(),
                 program_id: resolved_program_id.expect("Could not resolve program id"),
                 feature_gate: config.feature_activation.address,
-                expect_activated: *expect_activated,
+                expect_activated: expect_activated,
             };
             if let Err(err_outcome) = test.deploy_or_skip_program(&ctx) {
                 if let Some(h) = surfnet_handle {
@@ -255,7 +269,7 @@ async fn main() -> Result<()> {
             // Detect on-chain activation and build context
             let detected = test.detect_feature_activated(&ctx);
             let activation = ActivationContext {
-                expected: *expect_activated,
+                expected: expect_activated,
                 detected: Some(detected),
             };
 
