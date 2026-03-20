@@ -1,0 +1,21 @@
+---
+name: Simd Checker
+id: simd-checker
+runbooks:
+  - name: deployment
+    description: Deploy programs
+    location: runbooks/deployment-flows
+environments:
+  localnet:
+      network_id: localnet
+      rpc_api_url: http://localhost:8899
+  devnet:
+      network_id: devnet
+      rpc_api_url: https://api.devnet.solana.com
+  testnet:
+      network_id: testnet
+      rpc_api_url: https://api.testnet.solana.com
+  mainnet:
+      network_id: mainnet
+      rpc_api_url: https://api.mainnet-beta.solana.com
+

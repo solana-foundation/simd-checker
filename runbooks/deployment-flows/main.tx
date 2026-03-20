@@ -1,0 +1,23 @@
+addon "svm" {
+    rpc_api_url = input.rpc_api_url
+    network_id = input.network_id
+}
+
+variable "program_name" {
+    value = "simd_${flow.simd_number}"
+}
+action "deploy" "svm::deploy_program" {
+    description = "Deploy the SIMD-${flow.simd_number} test to ${input.network_id}"
+    program = svm::get_program_from_native_project(variable.program_name) 
+    authority = signer.authority
+    payer = signer.payer
+}
+
+
+output "deployment_output" {
+    value = {
+        simd: "SIMD-${flow.simd_number}"
+        program_id: action.deploy.program_id,
+        authority: signer.authority.public_key
+    }
+}
