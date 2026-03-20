@@ -56,6 +56,14 @@ pub struct FeatureConfig {
     pub test: Option<TestConfig>,
 }
 
+impl FeatureConfig {
+    pub fn test_deployment_for(&self, network: &str) -> Option<&NetworkDeploymentConfig> {
+        self.test
+            .as_ref()
+            .and_then(|test| test.deployment_for(network))
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct FeatureActivationConfig {
     #[serde(deserialize_with = "deserialize_pubkey")]
@@ -98,10 +106,56 @@ pub struct TestConfig {
     pub mainnet: Option<NetworkDeploymentConfig>,
 }
 
+impl TestConfig {
+    pub fn deployment_for(&self, network: &str) -> Option<&NetworkDeploymentConfig> {
+        match network {
+            "devnet" => self.devnet.as_ref(),
+            "testnet" => self.testnet.as_ref(),
+            "mainnet" => self.mainnet.as_ref(),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct NetworkDeploymentConfig {
     #[serde(deserialize_with = "deserialize_option_pubkey", default)]
     pub address: Option<Pubkey>,
     #[serde(deserialize_with = "deserialize_option_pubkey", default)]
     pub authority: Option<Pubkey>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn prefers_network_specific_test_deployment_address() {
+        let manifest: Manifest = serde_yaml::from_str(
+            r#"
+simd_0001:
+  description: Example
+  number: 1
+  feature_activation:
+    address: 11111111111111111111111111111111
+  test:
+    location: "crates/tests/src/simd_0001.rs"
+    testnet:
+      address: GQfx3D8zDArQVtaRXqiJiSVe8mG2dKNGeiKBWr9YKPS5
+"#,
+        )
+        .unwrap();
+
+        let config = manifest.get("simd_0001").unwrap();
+
+        assert_eq!(
+            config
+                .test_deployment_for("testnet")
+                .and_then(|deployment| deployment.address),
+            Some(Pubkey::from_str_const(
+                "GQfx3D8zDArQVtaRXqiJiSVe8mG2dKNGeiKBWr9YKPS5"
+            ))
+        );
+        assert!(config.test_deployment_for("localnet").is_none());
+    }
 }

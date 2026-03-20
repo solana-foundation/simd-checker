@@ -231,23 +231,29 @@ async fn main() -> Result<()> {
                 };
 
             // Handle program deployment/checking
-            let mut resolved_program_id = None;
-            if let Some(deployment) = test.program() {
-                let program_kp = match load_or_generate_program_keypair(&deployment.keypair_path) {
-                    Ok(kp) => kp,
-                    Err(e) => {
-                        if let Some(h) = surfnet_handle {
-                            h.kill();
-                        }
-                        let outcome = TestOutcome::Fail {
-                            message: format!("Failed to load program keypair: {e}"),
+            let mut resolved_program_id = config
+                .test_deployment_for(&cli.network)
+                .and_then(|deployment| deployment.address);
+            if resolved_program_id.is_none() {
+                if let Some(deployment) = test.program() {
+                    let program_kp =
+                        match load_or_generate_program_keypair(&deployment.keypair_path) {
+                            Ok(kp) => kp,
+                            Err(e) => {
+                                if let Some(h) = surfnet_handle {
+                                    h.kill();
+                                }
+                                let outcome = TestOutcome::Fail {
+                                    message: format!("Failed to load program keypair: {e}"),
+                                    tx_signatures: vec![],
+                                };
+                                results.push(TestResult::new(label, &outcome, None));
+                                continue;
+                            }
                         };
-                        results.push(TestResult::new(label, &outcome, None));
-                        continue;
-                    }
-                };
 
-                resolved_program_id = Some(program_kp.pubkey());
+                    resolved_program_id = Some(program_kp.pubkey());
+                }
             }
 
             let ctx = RpcContext {
