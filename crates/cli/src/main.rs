@@ -327,7 +327,16 @@ async fn main() -> Result<()> {
                     status, result.label, activation_str, result.message,
                 );
                 for tx in &result.tx_signatures {
-                    println!("       tx {}: {}", tx.label, tx.signature);
+                    let tx_status = if tx.success { "ok" } else { "err" };
+                    let tx_error = tx
+                        .error
+                        .as_ref()
+                        .map(|error| format!(" ({error})"))
+                        .unwrap_or_default();
+                    println!(
+                        "       tx {} [{}]: {}{}",
+                        tx.label, tx_status, tx.signature, tx_error
+                    );
                 }
             }
             println!(

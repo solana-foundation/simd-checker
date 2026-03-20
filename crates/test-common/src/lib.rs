@@ -256,6 +256,9 @@ impl TestOutcome {
 pub struct LabeledTransactionSignature {
     pub label: String,
     pub signature: String,
+    pub success: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

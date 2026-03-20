@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use solana_client::rpc_config::{CommitmentConfig, RpcSendTransactionConfig};
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_message::{AccountMeta, Message};
@@ -99,6 +100,34 @@ fn batch_transfer_ix(
             AccountMeta::new(*source, false),
             AccountMeta::new(*dest, false),
             AccountMeta::new_readonly(*authority, true),
+        ],
+    )
+}
+
+fn verify_feature_ix(
+    program_id: Pubkey,
+    feature_gate: Pubkey,
+    token_program: Pubkey,
+    source: Pubkey,
+    dest: Pubkey,
+    payer: Pubkey,
+    expect_activated: bool,
+    amount: u64,
+) -> Instruction {
+    Instruction::new_with_bytes(
+        program_id,
+        &{
+            let mut d = [0u8; 9];
+            d[0] = u8::from(expect_activated);
+            d[1..9].copy_from_slice(&amount.to_le_bytes());
+            d
+        },
+        vec![
+            AccountMeta::new_readonly(feature_gate, false),
+            AccountMeta::new_readonly(token_program, false),
+            AccountMeta::new(source, false),
+            AccountMeta::new(dest, false),
+            AccountMeta::new_readonly(payer, true),
         ],
     )
 }
@@ -207,10 +236,30 @@ fn send_instructions(
     let mut all_signers: Vec<&Keypair> = vec![&ctx.payer];
     all_signers.extend_from_slice(signers);
     let tx = Transaction::new(&all_signers, message, blockhash);
-    let signature = ctx.rpc_client.send_and_confirm_transaction(&tx)?;
+    let signature = ctx.rpc_client.send_transaction_with_config(
+        &tx,
+        RpcSendTransactionConfig {
+            skip_preflight: true,
+            ..Default::default()
+        },
+    )?;
+    ctx.rpc_client
+        .poll_for_signature_with_commitment(&signature, CommitmentConfig::confirmed())?;
+    let status = ctx
+        .rpc_client
+        .get_signature_statuses(&[signature])?
+        .value
+        .into_iter()
+        .next()
+        .flatten();
+
+    let error = status.and_then(|s| s.err.map(|e| e.to_string()));
+
     Ok(LabeledTransactionSignature {
         label: label.into(),
         signature: signature.to_string(),
+        success: error.is_none(),
+        error,
     })
 }
 
@@ -863,27 +912,109 @@ impl SimdTest for Simd0266Test {
                 &ctx,
                 "Batch CPI",
                 None,
-                &[Instruction::new_with_bytes(
+                &[verify_feature_ix(
                     ctx.program_id,
-                    &{
-                        let mut d = [0u8; 9];
-                        d[0] = 1;
-                        d[1..9].copy_from_slice(&EXERCISE_AMOUNT.to_le_bytes());
-                        d
-                    },
-                    vec![
-                        AccountMeta::new_readonly(ctx.feature_gate, false),
-                        AccountMeta::new_readonly(token_program, false),
-                        AccountMeta::new(source_ata, false),
-                        AccountMeta::new(dest_ata, false),
-                        AccountMeta::new_readonly(payer_pubkey, true),
-                    ],
+                    ctx.feature_gate,
+                    token_program,
+                    source_ata,
+                    dest_ata,
+                    payer_pubkey,
+                    true,
+                    EXERCISE_AMOUNT,
                 )],
                 &[],
             )? {
                 Ok(measurement) => measurements.push(measurement),
                 Err(note) => notes.push(note),
             }
+
+            let batch_cpi_result = send_instructions(
+                &ctx,
+                "batch-cpi",
+                &[verify_feature_ix(
+                    ctx.program_id,
+                    ctx.feature_gate,
+                    token_program,
+                    source_ata,
+                    dest_ata,
+                    payer_pubkey,
+                    true,
+                    EXERCISE_AMOUNT,
+                )],
+                &[],
+            )?;
+            if !batch_cpi_result.success {
+                let error = batch_cpi_result
+                    .error
+                    .clone()
+                    .unwrap_or_else(|| "unknown error".to_string());
+                tx_signatures.push(batch_cpi_result);
+                return Ok(TestOutcome::Fail {
+                    message: format!("Batch CPI transaction failed while activated: {error}"),
+                    tx_signatures,
+                });
+            }
+            tx_signatures.push(batch_cpi_result);
+        } else {
+            match try_simulate_named(
+                &ctx,
+                "Batch CPI (deactivated)",
+                None,
+                &[verify_feature_ix(
+                    ctx.program_id,
+                    ctx.feature_gate,
+                    token_program,
+                    source_ata,
+                    dest_ata,
+                    payer_pubkey,
+                    false,
+                    EXERCISE_AMOUNT,
+                )],
+                &[],
+            )? {
+                Ok(measurement) => {
+                    return Ok(TestOutcome::Fail {
+                        message: format!(
+                            "{} unexpectedly succeeded with {} CUs while SIMD-0266 was deactivated",
+                            measurement.name, measurement.actual
+                        ),
+                        tx_signatures,
+                    });
+                }
+                Err(note) => notes.push(format!(
+                    "Batch CPI rejected while deactivated as expected: {note}"
+                )),
+            }
+
+            let batch_cpi_result = send_instructions(
+                &ctx,
+                "batch-cpi-deactivated",
+                &[verify_feature_ix(
+                    ctx.program_id,
+                    ctx.feature_gate,
+                    token_program,
+                    source_ata,
+                    dest_ata,
+                    payer_pubkey,
+                    false,
+                    EXERCISE_AMOUNT,
+                )],
+                &[],
+            )?;
+            tx_signatures.push(batch_cpi_result.clone());
+            if batch_cpi_result.success {
+                return Ok(TestOutcome::Fail {
+                    message: "Batch CPI unexpectedly succeeded while SIMD-0266 was deactivated"
+                        .to_string(),
+                    tx_signatures,
+                });
+            }
+            let error = batch_cpi_result
+                .error
+                .unwrap_or_else(|| "transaction confirmed without an explicit error".to_string());
+            notes.push(format!(
+                "Batch CPI transaction rejected while deactivated as expected: {error}"
+            ));
         }
 
         let transfer_cus = measured_cus(&measurements, "Transfer").unwrap_or_default();

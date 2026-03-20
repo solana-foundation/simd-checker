@@ -41,6 +41,8 @@ impl SimdTest for Simd0194Test {
                 tx_signatures: vec![LabeledTransactionSignature {
                     label: "feature-check".to_string(),
                     signature: sig.to_string(),
+                    success: true,
+                    error: None,
                 }],
             }),
             Err(e) => Ok(TestOutcome::Fail {
