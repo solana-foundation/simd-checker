@@ -5,6 +5,8 @@ runbooks:
   - name: deployment
     description: Deploy programs
     location: runbooks/deployment-flows
+    state:
+      location: runbooks/state
 environments:
   localnet:
       network_id: localnet
