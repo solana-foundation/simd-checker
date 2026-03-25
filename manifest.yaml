@@ -450,6 +450,9 @@ simd_0194:
         testnet:
             address: GQfx3D8zDArQVtaRXqiJiSVe8mG2dKNGeiKBWr9YKPS5
             authority: HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm
+        devnet:
+            address: GQfx3D8zDArQVtaRXqiJiSVe8mG2dKNGeiKBWr9YKPS5
+            authority: HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm
 simd_0196:
     description: "Migrate Stake to Core BPF"
     url: "https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0196-migrate-stake-to-core-bpf.md"
@@ -571,6 +574,9 @@ simd_0266:
     test:
         location: "crates/tests/src/simd_0266.rs"
         testnet:
+            address: 7GJmXtGkAWcKY8bZFmPvYc9XZqbfND9YoA9zwQrkCfxA
+            authority: HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm
+        devnet:
             address: 7GJmXtGkAWcKY8bZFmPvYc9XZqbfND9YoA9zwQrkCfxA
             authority: HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm
 simd_0267:

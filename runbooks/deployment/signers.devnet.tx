@@ -1,0 +1,10 @@
+
+signer "payer" "svm::web_wallet" {
+    description = "Pays fees for program deployments and operations"
+    expected_address = "HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm"
+}
+    
+signer "authority" "svm::web_wallet" {
+    description = "Can upgrade programs and manage critical ops"
+    expected_address = "HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm"
+}
