@@ -48,6 +48,7 @@ fn rpc_url_for_network(network: &str) -> String {
     match network {
         "localnet" => "http://127.0.0.1:8899".to_string(),
         "testnet" => "https://api.testnet.solana.com".to_string(),
+        "devnet" => "https://api.devnet.solana.com".to_string(),
         "mainnet" => "https://api.mainnet-beta.solana.com".to_string(),
         url => url.to_string(),
     }
