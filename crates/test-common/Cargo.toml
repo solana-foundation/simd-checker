@@ -19,5 +19,5 @@ program-common = { path = "../program-common" }
 
 tokio = { workspace = true }
 
-surfpool-core = { path = "../../../surfpool/crates/core" }
-surfpool-types = { path = "../../../surfpool/crates/types" }
+surfpool-core = { git = "https://github.com/solana-foundation/surfpool", package = "surfpool-core", branch = "litesvm-v0.10.x" }
+surfpool-types = { git = "https://github.com/solana-foundation/surfpool", package = "surfpool-types", branch = "litesvm-v0.10.x" }

@@ -3829,6 +3829,8 @@ checksum = "6373607a59f0be73a39b6fe456b8192fcc3585f602af20751600e974dd455e77"
 [[package]]
 name = "litesvm"
 version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a6d4edace08253a908d301768f291a7115e8e19e13473dd6e1ace78d6366433"
 dependencies = [
  "agave-feature-set",
  "agave-reserved-account-keys",
@@ -3838,7 +3840,6 @@ dependencies = [
  "indexmap",
  "itertools 0.14.0",
  "log",
- "qualifier_attr",
  "serde",
  "solana-account 3.4.0",
  "solana-address 2.3.0",
@@ -3891,18 +3892,20 @@ dependencies = [
 [[package]]
 name = "litesvm"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a6d4edace08253a908d301768f291a7115e8e19e13473dd6e1ace78d6366433"
+source = "git+https://github.com/LiteSVM/litesvm#881db7bc88a2ff6b8d679dc493dcf3238d5727ac"
 dependencies = [
  "agave-feature-set",
  "agave-reserved-account-keys",
  "agave-syscalls",
  "ansi_term",
  "bincode",
+ "hex",
  "indexmap",
  "itertools 0.14.0",
  "log",
+ "qualifier_attr",
  "serde",
+ "sha2 0.10.9",
  "solana-account 3.4.0",
  "solana-address 2.3.0",
  "solana-address-lookup-table-interface 3.0.1",
@@ -3913,6 +3916,7 @@ dependencies = [
  "solana-compute-budget-instruction",
  "solana-epoch-rewards 3.0.1",
  "solana-epoch-schedule 3.0.0",
+ "solana-feature-gate-interface 3.1.0",
  "solana-fee",
  "solana-fee-structure",
  "solana-hash 3.1.0",
@@ -9822,6 +9826,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 [[package]]
 name = "surfpool-core"
 version = "1.1.1"
+source = "git+https://github.com/solana-foundation/surfpool?branch=litesvm-v0.10.x#199e58a9317873103a07ec66e4aa7905b0180fa3"
 dependencies = [
  "agave-feature-set",
  "agave-geyser-plugin-interface",
@@ -9850,7 +9855,7 @@ dependencies = [
  "jsonrpc-ws-server",
  "lazy_static",
  "libloading",
- "litesvm 0.10.0",
+ "litesvm 0.10.0 (git+https://github.com/LiteSVM/litesvm)",
  "litesvm-token",
  "log",
  "reqwest 0.12.28",
@@ -9858,6 +9863,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "serde_yaml",
+ "sha2 0.10.9",
  "solana-account 3.4.0",
  "solana-account-decoder",
  "solana-address-lookup-table-interface 3.0.1",
@@ -9911,6 +9917,7 @@ dependencies = [
 [[package]]
 name = "surfpool-db"
 version = "1.1.1"
+source = "git+https://github.com/solana-foundation/surfpool?branch=litesvm-v0.10.x#199e58a9317873103a07ec66e4aa7905b0180fa3"
 dependencies = [
  "diesel",
  "diesel-dynamic-schema",
@@ -9922,6 +9929,7 @@ dependencies = [
 [[package]]
 name = "surfpool-types"
 version = "1.1.1"
+source = "git+https://github.com/solana-foundation/surfpool?branch=litesvm-v0.10.x#199e58a9317873103a07ec66e4aa7905b0180fa3"
 dependencies = [
  "agave-feature-set",
  "anchor-lang-idl",
@@ -10487,9 +10495,9 @@ dependencies = [
 
 [[package]]
 name = "txtx-addon-kit"
-version = "0.4.13"
+version = "0.4.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "39daa36b5c78b422420428c657ccd0843c298eda5e2f24f4e50c390dba5a767a"
+checksum = "0425264792a9a8e3f1eec1578d1c22c04e48e80643ed8c5bf78dbe028ff6f436"
 dependencies = [
  "bip32",
  "crossbeam-channel",
@@ -10521,9 +10529,9 @@ dependencies = [
 
 [[package]]
 name = "txtx-addon-network-svm"
-version = "0.3.20"
+version = "0.3.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0ce555aad9adc013211c12c0262bc6bd2bd40ecdf0ea17c30321f7b233c4822c"
+checksum = "b8a314fb2eb88ba0fe8cad74ac6ea2cb0a9d941cd1bd45dccf2b26afe7fd9d34"
 dependencies = [
  "bincode",
  "borsh 1.6.0",
@@ -10532,7 +10540,6 @@ dependencies = [
  "lazy_static",
  "log",
  "serde",
- "serde_derive",
  "serde_json",
  "solana-account 3.4.0",
  "solana-account-decoder-client-types",
@@ -10564,14 +10571,13 @@ dependencies = [
 
 [[package]]
 name = "txtx-addon-network-svm-types"
-version = "0.3.18"
+version = "0.3.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1caa30cc5c75ec24f2425894d7181608b03852caa23857734daee43ab525b6d4"
+checksum = "f7ef6f62c318fc7a795688f1694b58c7ba8ca2847bba6f052fdbf8d444dcefb7"
 dependencies = [
  "anchor-lang-idl",
  "borsh 1.6.0",
  "bs58",
- "convert_case 0.6.0",
  "lazy_static",
  "serde",
  "serde_json",
@@ -10581,7 +10587,6 @@ dependencies = [
  "solana-pubkey 3.0.0",
  "solana-signature",
  "solana-transaction",
- "solana-transaction-status-client-types",
  "txtx-addon-kit",
 ]
 

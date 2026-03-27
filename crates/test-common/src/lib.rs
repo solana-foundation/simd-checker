@@ -132,7 +132,6 @@ pub async fn start_surfnet(
     };
 
     let (simnet_commands_tx, simnet_commands_rx) = crossbeam::channel::unbounded();
-    let (subgraph_commands_tx, _) = crossbeam::channel::unbounded();
 
     let handle_tx = simnet_commands_tx.clone();
 
@@ -147,7 +146,6 @@ pub async fn start_surfnet(
             let _ = surfpool_core::start_local_surfnet(
                 surfnet_svm,
                 config,
-                subgraph_commands_tx,
                 simnet_commands_tx,
                 simnet_commands_rx,
                 geyser_events_rx,
