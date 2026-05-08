@@ -2,3 +2,4 @@
 **/*.so
 **/program-keypair.json
 .surfpool
+.DS_Store
