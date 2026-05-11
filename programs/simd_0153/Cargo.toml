@@ -1,0 +1,13 @@
+[package]
+name = "simd-0153"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+pinocchio = { workspace = true }
+solana-address = { workspace = true }
+solana-program-log = { workspace = true }
+program-common = { path = "../../crates/program-common" }

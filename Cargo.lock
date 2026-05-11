@@ -5921,6 +5921,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "simd-0153"
+version = "0.1.0"
+dependencies = [
+ "pinocchio",
+ "program-common",
+ "solana-address 2.3.0",
+ "solana-program-log",
+]
+
+[[package]]
 name = "simd-0194"
 version = "0.1.0"
 dependencies = [

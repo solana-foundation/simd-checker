@@ -286,6 +286,8 @@ simds:
           mainnet:
               epoch: 731
       depends_on: []
+      test:
+          location: "crates/tests/src/simd_0153.rs"
   simd_0159:
       description: "Relax Precompile Failure Constraint"
       url: "https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0159-relax-precompile-failure-constraint.md"
