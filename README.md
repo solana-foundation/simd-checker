@@ -39,7 +39,7 @@ just run --output yaml --output-file results.yaml
 | `--output`      | `text`                     | Output format: `text`, `json`, or `yaml`                              |
 | `--output-file` |                            | Write json/yaml output to a file instead of stdout                    |
 
-## Adding a new test
+## Adding a new SIMD test
 
 1. **Create the on-chain program** under `programs/simd_XXXX/` with its own `Cargo.toml` (`cdylib` crate type) and entrypoint logic in `src/lib.rs`.
 
@@ -84,18 +84,107 @@ just run --output yaml --output-file results.yaml
    map.insert("simd_XXXX".to_string(), simd_XXXX::register());
    ```
 
-4. **Add a manifest entry** in `manifest.yaml`:
+4. **Add a manifest entry** in `manifest.yaml` under the top-level `simds:` key:
 
    ```yaml
-   simd_XXXX:
-     description: Your feature description
-     number: XXXX
-     feature_activation:
-       address: <feature-gate-pubkey>
-     depends_on: []
-     test:
-       location: "crates/tests/src/simd_XXXX.rs"
+   simds:
+     simd_XXXX:
+       description: Your feature description
+       number: XXXX
+       feature_activation:
+         address: <feature-gate-pubkey>
+       depends_on: []
+       test:
+         location: "crates/tests/src/simd_XXXX.rs"
    ```
+
+## Adding a new E2E test
+
+E2E tests validate a *combination* of feature activations and on-chain program
+deployments — useful when a real feature ship requires more than one SIMD plus
+a program upgrade (e.g. Confidential Transfers needs SIMD 0153 **and** a
+token-2022 binary that supports it).
+
+Outcomes for an E2E check:
+
+| Outcome     | Meaning                                                                |
+| ----------- | ---------------------------------------------------------------------- |
+| **PASS**    | All requirements met, behavior verified.                               |
+| **FAIL**    | All requirements met, behavior is broken — real bug.                   |
+| **PENDING** | One or more requirements (feature gates / program hashes) not yet met. |
+| **SKIP**    | No test implementation registered for the check.                       |
+
+1. **Add the host-side test** at `crates/tests/src/e2e/<your_check>.rs`. Implement the `E2eTest` trait:
+
+   ```rust
+   use anyhow::Result;
+   use async_trait::async_trait;
+   use test_common::{E2eContext, E2eTest, TestOutcome};
+
+   pub struct YourCheckE2e;
+
+   #[async_trait]
+   impl E2eTest for YourCheckE2e {
+       fn id(&self) -> &'static str {
+           "e2e_your_check"
+       }
+
+       async fn run(&self, ctx: E2eContext) -> Result<TestOutcome> {
+           // All `requires` in the manifest are already satisfied by the time
+           // this runs. `ctx.required_feature_gates` and `ctx.required_programs`
+           // give the resolved pubkeys in manifest order.
+           todo!()
+       }
+   }
+
+   pub fn register() -> Box<dyn E2eTest> {
+       Box::new(YourCheckE2e)
+   }
+   ```
+
+2. **Register the module** in [`crates/tests/src/e2e/mod.rs`](crates/tests/src/e2e/mod.rs):
+
+   ```rust
+   pub mod your_check;
+   ```
+
+   And add one line in [`all_e2e_tests()`](crates/tests/src/lib.rs):
+
+   ```rust
+   map.insert("e2e_your_check".to_string(), e2e::your_check::register());
+   ```
+
+3. **Add a manifest entry** in `manifest.yaml` under the top-level `e2e_checks:` key:
+
+   ```yaml
+   e2e_checks:
+     your_check:
+       description: "What this end-to-end behavior validates"
+       url: "https://link/to/spec-or-tracking-issue"
+       requires:
+         feature_gates:
+           # Either a SIMD id from the `simds:` map, or a raw feature-gate pubkey.
+           - simd_XXXX
+           - <raw-feature-gate-pubkey>
+         programs:
+           - address: <program-pubkey>
+             # Optional: pin to a specific deployed ELF.
+             # Hex hash from `solana-verify get-executable-hash`.
+             expected_hash: "<sha256-hex>"
+             description: "Human-readable label for error output"
+       test: "e2e_your_check"
+   ```
+
+   Notes:
+
+   - The runner checks every `requires` entry against the target network before
+     running the test. Any unmet requirement → `PENDING` (the test body is not
+     invoked).
+   - Omit `expected_hash` to require only that the program exists and is
+     executable.
+   - On `localnet`, the runner spins up a surfnet with `requires.feature_gates`
+     enabled and lets surfpool's upstream RPC supply the required program
+     accounts.
 
 ## Status
 

@@ -1,13 +1,19 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::str::FromStr;
 
 use serde::Deserialize;
 use solana_pubkey::Pubkey;
 
 pub type SimdId = String;
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Manifest(HashMap<SimdId, FeatureConfig>);
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct Manifest {
+    #[serde(default)]
+    pub simds: HashMap<SimdId, FeatureConfig>,
+    #[serde(default)]
+    pub e2e_checks: HashMap<String, E2eCheckConfig>,
+}
 
 impl Manifest {
     pub fn load(path: &Path) -> anyhow::Result<Self> {
@@ -17,11 +23,24 @@ impl Manifest {
     }
 
     pub fn get(&self, id: &str) -> Option<&FeatureConfig> {
-        self.0.get(id)
+        self.simds.get(id)
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (&SimdId, &FeatureConfig)> {
-        self.0.iter()
+    pub fn iter_simds(&self) -> impl Iterator<Item = (&SimdId, &FeatureConfig)> {
+        self.simds.iter()
+    }
+
+    pub fn iter_e2e_checks(&self) -> impl Iterator<Item = (&String, &E2eCheckConfig)> {
+        self.e2e_checks.iter()
+    }
+
+    /// Resolve a feature-gate label that is either a SIMD id (e.g. `simd_0153`)
+    /// or a raw base58 pubkey to a `Pubkey`.
+    pub fn resolve_feature_gate(&self, key: &str) -> Option<Pubkey> {
+        if let Some(config) = self.simds.get(key) {
+            return Some(config.feature_activation.address);
+        }
+        Pubkey::from_str(key).ok()
     }
 }
 
@@ -30,7 +49,7 @@ where
     D: serde::Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
-    Ok(Pubkey::from_str_const(&s))
+    Pubkey::from_str(&s).map_err(serde::de::Error::custom)
 }
 
 fn deserialize_option_pubkey<'de, D>(deserializer: D) -> Result<Option<Pubkey>, D::Error>
@@ -38,7 +57,8 @@ where
     D: serde::Deserializer<'de>,
 {
     let s: Option<String> = Option::deserialize(deserializer)?;
-    Ok(s.map(|s| Pubkey::from_str_const(&s)))
+    s.map(|s| Pubkey::from_str(&s).map_err(serde::de::Error::custom))
+        .transpose()
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -125,6 +145,71 @@ pub struct NetworkDeploymentConfig {
     pub authority: Option<Pubkey>,
 }
 
+// --------------------------------------------------------------------------
+// E2E check types
+// --------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct E2eCheckConfig {
+    pub description: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub requires: E2eCheckRequirements,
+    /// Logical test id, registered in `crates/tests/src/lib.rs::all_e2e_tests()`.
+    pub test: String,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct E2eCheckRequirements {
+    /// Feature gates that must be active. Each entry is either a SIMD id
+    /// (e.g. "simd_0153"), in which case the pubkey is resolved via the
+    /// `simds` map, or a raw base58 pubkey.
+    #[serde(default)]
+    pub feature_gates: Vec<String>,
+
+    /// On-chain programs that must be deployed (and optionally pinned to a
+    /// specific binary hash).
+    #[serde(default)]
+    pub programs: Vec<ProgramDeploymentRequirement>,
+}
+
+impl E2eCheckRequirements {
+    /// Resolve every feature-gate label to a `(label, Pubkey)` pair.
+    /// Errors if a label is neither a known SIMD id nor a parseable pubkey.
+    pub fn resolved_feature_gates(
+        &self,
+        manifest: &Manifest,
+    ) -> anyhow::Result<Vec<(String, Pubkey)>> {
+        self.feature_gates
+            .iter()
+            .map(|label| {
+                manifest
+                    .resolve_feature_gate(label)
+                    .map(|pk| (label.clone(), pk))
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "feature gate '{}' is neither a known SIMD id nor a valid pubkey",
+                            label
+                        )
+                    })
+            })
+            .collect()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ProgramDeploymentRequirement {
+    #[serde(deserialize_with = "deserialize_pubkey")]
+    pub address: Pubkey,
+    /// Hex hash from `solana-verify get-executable-hash` of the deployed ELF.
+    /// `None` means "must exist and be executable" with no binary pinning.
+    #[serde(default)]
+    pub expected_hash: Option<String>,
+    #[serde(default)]
+    pub description: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -133,15 +218,16 @@ mod tests {
     fn prefers_network_specific_test_deployment_address() {
         let manifest: Manifest = serde_yaml::from_str(
             r#"
-simd_0001:
-  description: Example
-  number: 1
-  feature_activation:
-    address: 11111111111111111111111111111111
-  test:
-    location: "crates/tests/src/simd_0001.rs"
-    testnet:
-      address: GQfx3D8zDArQVtaRXqiJiSVe8mG2dKNGeiKBWr9YKPS5
+simds:
+  simd_0001:
+    description: Example
+    number: 1
+    feature_activation:
+      address: 11111111111111111111111111111111
+    test:
+      location: "crates/tests/src/simd_0001.rs"
+      testnet:
+        address: GQfx3D8zDArQVtaRXqiJiSVe8mG2dKNGeiKBWr9YKPS5
 "#,
         )
         .unwrap();
@@ -157,5 +243,93 @@ simd_0001:
             ))
         );
         assert!(config.test_deployment_for("localnet").is_none());
+    }
+
+    #[test]
+    fn parses_simds_only_document() {
+        let m: Manifest = serde_yaml::from_str(
+            r#"
+simds:
+  simd_0001:
+    description: Example
+    number: 1
+    feature_activation:
+      address: 11111111111111111111111111111111
+"#,
+        )
+        .unwrap();
+        assert_eq!(m.simds.len(), 1);
+        assert!(m.e2e_checks.is_empty());
+    }
+
+    #[test]
+    fn parses_e2e_checks_only_document() {
+        let m: Manifest = serde_yaml::from_str(
+            r#"
+e2e_checks:
+  example:
+    description: Example
+    test: e2e_example
+    requires:
+      feature_gates:
+        - 11111111111111111111111111111111
+"#,
+        )
+        .unwrap();
+        assert!(m.simds.is_empty());
+        assert_eq!(m.e2e_checks.len(), 1);
+    }
+
+    #[test]
+    fn e2e_check_resolves_feature_gate_by_simd_id_and_raw_pubkey() {
+        let m: Manifest = serde_yaml::from_str(
+            r#"
+simds:
+  simd_0153:
+    description: ZK ElGamal
+    number: 153
+    feature_activation:
+      address: zkhiy5oLowR7HY4zogXjCjeMXyruLqBwSWH21qcFtnv
+e2e_checks:
+  example:
+    description: Example
+    test: e2e_example
+    requires:
+      feature_gates:
+        - simd_0153
+        - 11111111111111111111111111111111
+"#,
+        )
+        .unwrap();
+        let check = m.e2e_checks.get("example").unwrap();
+        let resolved = check.requires.resolved_feature_gates(&m).unwrap();
+        assert_eq!(resolved.len(), 2);
+        assert_eq!(resolved[0].0, "simd_0153");
+        assert_eq!(
+            resolved[0].1,
+            Pubkey::from_str_const("zkhiy5oLowR7HY4zogXjCjeMXyruLqBwSWH21qcFtnv")
+        );
+        assert_eq!(
+            resolved[1].1,
+            Pubkey::from_str_const("11111111111111111111111111111111")
+        );
+    }
+
+    #[test]
+    fn e2e_check_unknown_feature_gate_label_errors() {
+        let m: Manifest = serde_yaml::from_str(
+            r#"
+e2e_checks:
+  example:
+    description: Example
+    test: e2e_example
+    requires:
+      feature_gates:
+        - not_a_simd_or_pubkey
+"#,
+        )
+        .unwrap();
+        let check = m.e2e_checks.get("example").unwrap();
+        assert!(check.requires.resolved_feature_gates(&m).is_err());
     }
 }

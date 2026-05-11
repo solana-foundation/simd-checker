@@ -7,11 +7,11 @@ use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
 use test_common::{
-    collect_dependency_features, collect_feature_deps, start_surfnet, ActivationContext, Manifest,
-    RpcContext, TestOutcome, TestReport, TestResult,
+    collect_dependency_features, collect_feature_deps, start_surfnet, ActivationContext,
+    E2eContext, Manifest, RequirementChecker, RpcContext, TestOutcome, TestReport, TestResult,
 };
 
-use tests::all_tests;
+use tests::{all_e2e_tests, all_simd_tests};
 
 #[derive(Parser)]
 #[command(
@@ -128,11 +128,11 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     let manifest = Manifest::load(Path::new(&cli.manifest))?;
-    let tests = all_tests();
+    let tests = all_simd_tests();
 
     // Collect manifest entries, filtered and sorted by SIMD number
     let mut entries: Vec<_> = manifest
-        .iter()
+        .iter_simds()
         .filter(|(id, config)| {
             if let Some(ref f) = cli.filter {
                 id.contains(f) || config.number.to_string().contains(f)
@@ -143,12 +143,30 @@ async fn main() -> Result<()> {
         .collect();
     entries.sort_by_key(|(_, config)| config.number);
 
-    if entries.is_empty() {
+    // Collect e2e checks, filtered
+    let mut e2e_entries: Vec<_> = manifest
+        .iter_e2e_checks()
+        .filter(|(id, config)| {
+            if let Some(ref f) = cli.filter {
+                id.contains(f) || config.description.contains(f)
+            } else {
+                true
+            }
+        })
+        .collect();
+    e2e_entries.sort_by_key(|(id, _)| (*id).clone());
+
+    if entries.is_empty() && e2e_entries.is_empty() {
         println!("No tests matched the filter.");
         return Ok(());
     }
 
-    info!("Running {} test(s) on {}...", entries.len(), cli.network);
+    info!(
+        "Running {} SIMD test(s) and {} e2e check(s) on {}...",
+        entries.len(),
+        e2e_entries.len(),
+        cli.network
+    );
 
     let payer = resolve_keypair(&cli.keypair, &cli.network)?;
     let url = rpc_url_for_network(&cli.network);
@@ -290,6 +308,123 @@ async fn main() -> Result<()> {
         }
     }
 
+    // ----- E2E checks -----
+    let e2e_tests = all_e2e_tests();
+    for (id, config) in &e2e_entries {
+        let label = format!("E2E {}", id);
+        info!("Starting e2e check {}", id);
+
+        // Resolve feature gates up-front so a misconfigured manifest fails loudly.
+        let resolved_gates = match config.requires.resolved_feature_gates(&manifest) {
+            Ok(g) => g,
+            Err(e) => {
+                let outcome = TestOutcome::Fail {
+                    message: format!("Failed to resolve feature gates: {e}"),
+                    tx_signatures: vec![],
+                };
+                results.push(TestResult::new(label, &outcome, None));
+                continue;
+            }
+        };
+
+        // Spin up runtime: surfnet for localnet (with required gates enabled),
+        // live RpcClient otherwise.
+        let (surfnet_handle, e2e_rpc_client) = if cli.network == "localnet" {
+            let enable: Vec<_> = resolved_gates.iter().map(|(_, pk)| *pk).collect();
+            let handle = match start_surfnet(enable, vec![]).await {
+                Ok(h) => h,
+                Err(e) => {
+                    let outcome = TestOutcome::Fail {
+                        message: format!("Failed to start surfnet: {e}"),
+                        tx_signatures: vec![],
+                    };
+                    results.push(TestResult::new(label, &outcome, None));
+                    continue;
+                }
+            };
+            let client = Arc::new(RpcClient::new_with_commitment(
+                &handle.rpc_url,
+                CommitmentConfig::confirmed(),
+            ));
+            if let Err(e) = airdrop(&client, &payer) {
+                handle.kill();
+                let outcome = TestOutcome::Fail {
+                    message: format!("Airdrop failed: {e}"),
+                    tx_signatures: vec![],
+                };
+                results.push(TestResult::new(label, &outcome, None));
+                continue;
+            }
+            (Some(handle), client)
+        } else {
+            (None, Arc::clone(&rpc_client))
+        };
+
+        // Check requirements against whichever runtime we're on. Surfpool's
+        // configured upstream RPC will fall through for missing accounts on
+        // localnet, so the same check is meaningful in both cases.
+        let unmet =
+            match RequirementChecker::new(&e2e_rpc_client).check(&config.requires, &manifest) {
+                Ok(u) => u,
+                Err(e) => {
+                    if let Some(h) = surfnet_handle {
+                        h.kill();
+                    }
+                    let outcome = TestOutcome::Fail {
+                        message: format!("Requirement check failed: {e}"),
+                        tx_signatures: vec![],
+                    };
+                    results.push(TestResult::new(label, &outcome, None));
+                    continue;
+                }
+            };
+
+        if !unmet.is_empty() {
+            if let Some(h) = surfnet_handle {
+                h.kill();
+            }
+            let outcome = TestOutcome::Pending { unmet };
+            results.push(TestResult::new(label, &outcome, None));
+            continue;
+        }
+
+        // Look up the test impl.
+        let Some(test) = e2e_tests.get(config.test.as_str()) else {
+            if let Some(h) = surfnet_handle {
+                h.kill();
+            }
+            let outcome = TestOutcome::Skip {
+                reason: format!(
+                    "No e2e test implementation registered for '{}'",
+                    config.test
+                ),
+            };
+            results.push(TestResult::new(label, &outcome, None));
+            continue;
+        };
+
+        let ctx = E2eContext {
+            rpc_client: Arc::clone(&e2e_rpc_client),
+            payer: payer.insecure_clone(),
+            network_name: cli.network.clone(),
+            required_feature_gates: resolved_gates.iter().map(|(_, pk)| *pk).collect(),
+            required_programs: config.requires.programs.iter().map(|p| p.address).collect(),
+        };
+
+        let outcome = match test.run(ctx).await {
+            Ok(o) => o,
+            Err(e) => TestOutcome::Fail {
+                message: format!("e2e test errored: {e}"),
+                tx_signatures: vec![],
+            },
+        };
+
+        if let Some(h) = surfnet_handle {
+            h.kill();
+        }
+        results.push(TestResult::new(label, &outcome, None));
+    }
+
     let report = TestReport::new(results);
 
     match cli.output.as_str() {
@@ -317,6 +452,7 @@ async fn main() -> Result<()> {
                     "pass" => "[PASS]",
                     "fail" => "[FAIL]",
                     "skip" => "[SKIP]",
+                    "pending" => "[PENDING]",
                     _ => "[????]",
                 };
                 let activation_str = match &result.activation {
@@ -324,9 +460,12 @@ async fn main() -> Result<()> {
                     None => String::new(),
                 };
                 println!(
-                    "{:6} {}{} - {}",
+                    "{:9} {}{} - {}",
                     status, result.label, activation_str, result.message,
                 );
+                for unmet in &result.unmet {
+                    println!("          - {}", unmet);
+                }
                 for tx in &result.tx_signatures {
                     let tx_status = if tx.success { "ok" } else { "err" };
                     let tx_error = tx
@@ -335,14 +474,17 @@ async fn main() -> Result<()> {
                         .map(|error| format!(" ({error})"))
                         .unwrap_or_default();
                     println!(
-                        "       tx {} [{}]: {}{}",
+                        "          tx {} [{}]: {}{}",
                         tx.label, tx_status, tx.signature, tx_error
                     );
                 }
             }
             println!(
-                "\nSummary: {} passed, {} failed, {} skipped",
-                report.summary.passed, report.summary.failed, report.summary.skipped,
+                "\nSummary: {} passed, {} failed, {} pending, {} skipped",
+                report.summary.passed,
+                report.summary.failed,
+                report.summary.pending,
+                report.summary.skipped,
             );
         }
     }

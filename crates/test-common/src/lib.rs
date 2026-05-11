@@ -14,10 +14,14 @@ use surfpool_types::{
 use crate::surfpool::deploy_program_surfpool;
 
 pub mod manifest;
+pub mod requirements;
 mod surfpool;
 mod util;
 
-pub use manifest::{FeatureConfig, Manifest};
+pub use manifest::{
+    E2eCheckConfig, E2eCheckRequirements, FeatureConfig, Manifest, ProgramDeploymentRequirement,
+};
+pub use requirements::{RequirementChecker, UnmetRequirement};
 
 /// Collect the feature pubkey for `simd_id` **and** all its transitive dependencies.
 pub fn collect_feature_deps(manifest: &Manifest, simd_id: &str) -> Vec<Pubkey> {
@@ -218,6 +222,9 @@ pub enum TestOutcome {
     Skip {
         reason: String,
     },
+    Pending {
+        unmet: Vec<UnmetRequirement>,
+    },
 }
 
 impl TestOutcome {
@@ -230,14 +237,18 @@ impl TestOutcome {
             TestOutcome::Pass { .. } => "PASS",
             TestOutcome::Fail { .. } => "FAIL",
             TestOutcome::Skip { .. } => "SKIP",
+            TestOutcome::Pending { .. } => "PENDING",
         }
     }
 
-    pub fn message(&self) -> &str {
+    pub fn message(&self) -> String {
         match self {
-            TestOutcome::Pass { message, .. } => message,
-            TestOutcome::Fail { message, .. } => message,
-            TestOutcome::Skip { reason } => reason,
+            TestOutcome::Pass { message, .. } => message.clone(),
+            TestOutcome::Fail { message, .. } => message.clone(),
+            TestOutcome::Skip { reason } => reason.clone(),
+            TestOutcome::Pending { unmet } => {
+                format!("{} requirement(s) unmet", unmet.len())
+            }
         }
     }
 
@@ -246,6 +257,14 @@ impl TestOutcome {
             TestOutcome::Pass { tx_signatures, .. } => tx_signatures,
             TestOutcome::Fail { tx_signatures, .. } => tx_signatures,
             TestOutcome::Skip { .. } => &[],
+            TestOutcome::Pending { .. } => &[],
+        }
+    }
+
+    pub fn unmet(&self) -> &[UnmetRequirement] {
+        match self {
+            TestOutcome::Pending { unmet } => unmet,
+            _ => &[],
         }
     }
 }
@@ -268,6 +287,8 @@ pub struct TestResult {
     pub tx_signatures: Vec<LabeledTransactionSignature>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub activation: Option<ActivationContext>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unmet: Vec<UnmetRequirement>,
 }
 
 impl TestResult {
@@ -280,13 +301,15 @@ impl TestResult {
             TestOutcome::Pass { .. } => "pass",
             TestOutcome::Fail { .. } => "fail",
             TestOutcome::Skip { .. } => "skip",
+            TestOutcome::Pending { .. } => "pending",
         };
         Self {
             label,
             status: status.to_string(),
-            message: outcome.message().to_string(),
+            message: outcome.message(),
             tx_signatures: outcome.tx_signatures().to_vec(),
             activation,
+            unmet: outcome.unmet().to_vec(),
         }
     }
 }
@@ -296,6 +319,7 @@ pub struct TestSummary {
     pub passed: usize,
     pub failed: usize,
     pub skipped: usize,
+    pub pending: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -309,18 +333,24 @@ impl TestReport {
         let passed = results.iter().filter(|r| r.status == "pass").count();
         let failed = results.iter().filter(|r| r.status == "fail").count();
         let skipped = results.iter().filter(|r| r.status == "skip").count();
+        let pending = results.iter().filter(|r| r.status == "pending").count();
         Self {
             results,
             summary: TestSummary {
                 passed,
                 failed,
                 skipped,
+                pending,
             },
         }
     }
 
     pub fn any_fail(&self) -> bool {
         self.summary.failed > 0
+    }
+
+    pub fn any_pending(&self) -> bool {
+        self.summary.pending > 0
     }
 }
 
@@ -391,4 +421,28 @@ pub trait SimdTest: Send + Sync {
     }
 
     async fn run_rpc(&self, ctx: RpcContext) -> Result<TestOutcome>;
+}
+
+// --------------------------------------------------------------------------
+// E2E feature-set tests
+// --------------------------------------------------------------------------
+
+/// Context handed to an [`E2eTest`] at runtime. The runner has already
+/// verified that all `requires` are met before invoking `run`.
+pub struct E2eContext {
+    pub rpc_client: Arc<RpcClient>,
+    pub payer: Keypair,
+    pub network_name: String,
+    /// Resolved feature-gate pubkeys (in declaration order).
+    pub required_feature_gates: Vec<Pubkey>,
+    /// Resolved program ids (in declaration order).
+    pub required_programs: Vec<Pubkey>,
+}
+
+#[async_trait]
+pub trait E2eTest: Send + Sync {
+    /// Logical id this test is registered under (matches `e2e_checks.<name>.test`).
+    fn id(&self) -> &'static str;
+
+    async fn run(&self, ctx: E2eContext) -> Result<TestOutcome>;
 }
