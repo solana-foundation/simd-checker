@@ -291,6 +291,9 @@ simds:
           testnet:
             address: Crgm3t63oP5jZnJhbFA9wbyTg6UYYmUfReYKScjcjwrQ
             authority: HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm
+          devnet:
+            address: Crgm3t63oP5jZnJhbFA9wbyTg6UYYmUfReYKScjcjwrQ
+            authority: HdMZgHc9Y3HUMnXuM2aGjMDzuccYuzdh1Hb8AXzWv2Pm
   simd_0159:
       description: "Relax Precompile Failure Constraint"
       url: "https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0159-relax-precompile-failure-constraint.md"
