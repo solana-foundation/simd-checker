@@ -5,8 +5,8 @@ use serde::Serialize;
 use solana_client::rpc_client::RpcClient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
-use std::collections::HashSet;
 use std::sync::Arc;
+use std::{collections::HashSet, env};
 use surfpool_types::{
     RpcConfig, SimnetConfig, SimnetEvent, StudioConfig, SurfpoolConfig, SvmFeatureConfig,
 };
@@ -88,6 +88,25 @@ pub async fn start_surfnet(
     features_to_enable: Vec<Pubkey>,
     features_to_disable: Vec<Pubkey>,
 ) -> Result<SurfnetHandle> {
+    start_surfnet_inner(features_to_enable, features_to_disable, false).await
+}
+
+/// Like [`start_surfnet`] but with an upstream RPC URL set so that the
+/// surfnet can clone accounts (programs, mints, etc.) on demand. Required
+/// for e2e tests that depend on BPF programs (e.g. token-2022) which are
+/// not bundled into the surfnet's builtin set.
+pub async fn start_surfnet_with_upstream(
+    features_to_enable: Vec<Pubkey>,
+    features_to_disable: Vec<Pubkey>,
+) -> Result<SurfnetHandle> {
+    start_surfnet_inner(features_to_enable, features_to_disable, true).await
+}
+
+async fn start_surfnet_inner(
+    features_to_enable: Vec<Pubkey>,
+    features_to_disable: Vec<Pubkey>,
+    offline: bool,
+) -> Result<SurfnetHandle> {
     let (mut surfnet_svm, simnet_events_rx, geyser_events_rx) =
         surfpool_core::surfnet::svm::SurfnetSvm::default();
 
@@ -126,8 +145,12 @@ pub async fn start_surfnet(
             bind_port: studio_port,
         },
         simnets: vec![SimnetConfig {
-            offline_mode: true,
-            remote_rpc_url: None,
+            offline_mode: offline,
+            remote_rpc_url: if offline {
+                None
+            } else {
+                env::var("UPSTREAM_RPC_URL").ok()
+            },
             instruction_profiling_enabled: false,
             max_profiles: 1,
             ..Default::default()
@@ -224,6 +247,12 @@ pub enum TestOutcome {
     },
     Pending {
         unmet: Vec<UnmetRequirement>,
+        /// Optional message captured when the test was force-run despite
+        /// unmet requirements (via `--run-pending`). Empty otherwise.
+        message: Option<String>,
+        /// Transaction signatures captured when the test was force-run
+        /// despite unmet requirements. Empty otherwise.
+        tx_signatures: Vec<LabeledTransactionSignature>,
     },
 }
 
@@ -246,9 +275,14 @@ impl TestOutcome {
             TestOutcome::Pass { message, .. } => message.clone(),
             TestOutcome::Fail { message, .. } => message.clone(),
             TestOutcome::Skip { reason } => reason.clone(),
-            TestOutcome::Pending { unmet } => {
-                format!("{} requirement(s) unmet", unmet.len())
-            }
+            TestOutcome::Pending {
+                unmet,
+                message,
+                ..
+            } => match message {
+                Some(m) => format!("{} requirement(s) unmet; ran anyway: {m}", unmet.len()),
+                None => format!("{} requirement(s) unmet", unmet.len()),
+            },
         }
     }
 
@@ -257,13 +291,13 @@ impl TestOutcome {
             TestOutcome::Pass { tx_signatures, .. } => tx_signatures,
             TestOutcome::Fail { tx_signatures, .. } => tx_signatures,
             TestOutcome::Skip { .. } => &[],
-            TestOutcome::Pending { .. } => &[],
+            TestOutcome::Pending { tx_signatures, .. } => tx_signatures,
         }
     }
 
     pub fn unmet(&self) -> &[UnmetRequirement] {
         match self {
-            TestOutcome::Pending { unmet } => unmet,
+            TestOutcome::Pending { unmet, .. } => unmet,
             _ => &[],
         }
     }
@@ -431,6 +465,9 @@ pub trait SimdTest: Send + Sync {
 /// verified that all `requires` are met before invoking `run`.
 pub struct E2eContext {
     pub rpc_client: Arc<RpcClient>,
+    /// RPC URL string corresponding to `rpc_client`. Needed by tests that
+    /// build a non-blocking RPC client (e.g. for `spl-token-client::Token`).
+    pub rpc_url: String,
     pub payer: Keypair,
     pub network_name: String,
     /// Resolved feature-gate pubkeys (in declaration order).
@@ -439,7 +476,7 @@ pub struct E2eContext {
     pub required_programs: Vec<Pubkey>,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 pub trait E2eTest: Send + Sync {
     /// Logical id this test is registered under (matches `e2e_checks.<name>.test`).
     fn id(&self) -> &'static str;

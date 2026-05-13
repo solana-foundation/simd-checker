@@ -7,8 +7,9 @@ use solana_signer::Signer;
 use std::path::Path;
 use std::sync::Arc;
 use test_common::{
-    collect_dependency_features, collect_feature_deps, start_surfnet, ActivationContext,
-    E2eContext, Manifest, RequirementChecker, RpcContext, TestOutcome, TestReport, TestResult,
+    collect_dependency_features, collect_feature_deps, start_surfnet, start_surfnet_with_upstream,
+    ActivationContext, E2eContext, Manifest, RequirementChecker, RpcContext, TestOutcome,
+    TestReport, TestResult,
 };
 
 use tests::{all_e2e_tests, all_simd_tests};
@@ -42,6 +43,12 @@ struct Cli {
     /// Write json/yaml output to a file instead of stdout
     #[arg(long)]
     output_file: Option<String>,
+
+    /// Run e2e tests even when their requirements are unmet. The test's
+    /// status will still be reported as PENDING, but its output (message
+    /// and tx signatures) will be captured.
+    #[arg(long)]
+    run_pending: bool,
 }
 
 fn rpc_url_for_network(network: &str) -> String {
@@ -329,9 +336,12 @@ async fn main() -> Result<()> {
 
         // Spin up runtime: surfnet for localnet (with required gates enabled),
         // live RpcClient otherwise.
-        let (surfnet_handle, e2e_rpc_client) = if cli.network == "localnet" {
+        let (surfnet_handle, e2e_rpc_client, e2e_rpc_url) = if cli.network == "localnet" {
             let enable: Vec<_> = resolved_gates.iter().map(|(_, pk)| *pk).collect();
-            let handle = match start_surfnet(enable, vec![]).await {
+            // Use mainnet as the upstream RPC so that account-clone (e.g.
+            // token-2022 BPF program at TokenzQd...) just works without a
+            // separate `clone_program` step.
+            let handle = match start_surfnet_with_upstream(enable, vec![]).await {
                 Ok(h) => h,
                 Err(e) => {
                     let outcome = TestOutcome::Fail {
@@ -342,8 +352,9 @@ async fn main() -> Result<()> {
                     continue;
                 }
             };
+            let url = handle.rpc_url.clone();
             let client = Arc::new(RpcClient::new_with_commitment(
-                &handle.rpc_url,
+                &url,
                 CommitmentConfig::confirmed(),
             ));
             if let Err(e) = airdrop(&client, &payer) {
@@ -355,9 +366,9 @@ async fn main() -> Result<()> {
                 results.push(TestResult::new(label, &outcome, None));
                 continue;
             }
-            (Some(handle), client)
+            (Some(handle), client, url)
         } else {
-            (None, Arc::clone(&rpc_client))
+            (None, Arc::clone(&rpc_client), url.clone())
         };
 
         // Check requirements against whichever runtime we're on. Surfpool's
@@ -379,11 +390,15 @@ async fn main() -> Result<()> {
                 }
             };
 
-        if !unmet.is_empty() {
+        if !unmet.is_empty() && !cli.run_pending {
             if let Some(h) = surfnet_handle {
                 h.kill();
             }
-            let outcome = TestOutcome::Pending { unmet };
+            let outcome = TestOutcome::Pending {
+                unmet,
+                message: None,
+                tx_signatures: vec![],
+            };
             results.push(TestResult::new(label, &outcome, None));
             continue;
         }
@@ -405,6 +420,7 @@ async fn main() -> Result<()> {
 
         let ctx = E2eContext {
             rpc_client: Arc::clone(&e2e_rpc_client),
+            rpc_url: e2e_rpc_url.clone(),
             payer: payer.insecure_clone(),
             network_name: cli.network.clone(),
             required_feature_gates: resolved_gates.iter().map(|(_, pk)| *pk).collect(),
@@ -417,6 +433,35 @@ async fn main() -> Result<()> {
                 message: format!("e2e test errored: {e}"),
                 tx_signatures: vec![],
             },
+        };
+
+        // If we got here with unmet requirements (because of --run-pending),
+        // demote any outcome to PENDING while preserving the message and tx
+        // signatures captured during the run.
+        let outcome = if !unmet.is_empty() {
+            let (message, tx_signatures) = match outcome {
+                TestOutcome::Pass {
+                    message,
+                    tx_signatures,
+                } => (Some(message), tx_signatures),
+                TestOutcome::Fail {
+                    message,
+                    tx_signatures,
+                } => (Some(message), tx_signatures),
+                TestOutcome::Skip { reason } => (Some(reason), vec![]),
+                TestOutcome::Pending {
+                    message,
+                    tx_signatures,
+                    ..
+                } => (message, tx_signatures),
+            };
+            TestOutcome::Pending {
+                unmet,
+                message,
+                tx_signatures,
+            }
+        } else {
+            outcome
         };
 
         if let Some(h) = surfnet_handle {
