@@ -16,6 +16,7 @@
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
+use log::info;
 use std::sync::Arc;
 
 use solana_client::{
@@ -114,6 +115,11 @@ async fn run_inner(
     ctx: &E2eContext,
     sigs: &mut Vec<LabeledTransactionSignature>,
 ) -> Result<String> {
+    info!(
+        "confidential_transfers: starting against network={} rpc={}",
+        ctx.network_name, ctx.rpc_url
+    );
+
     // ---- Required program: token-2022 ----
     let expected_token_program = spl_token_2022::id();
     let token_program_id = ctx
@@ -155,7 +161,15 @@ async fn run_inner(
         payer_arc,
     );
 
+    info!(
+        "confidential_transfers: keypairs generated (mint={}, sender_owner={}, recipient_owner={})",
+        mint.pubkey(),
+        sender_owner.pubkey(),
+        recipient_owner.pubkey()
+    );
+
     // ---- 1. Create mint with ConfidentialTransferMint extension ----
+    info!("confidential_transfers: step 1/11 — creating mint with ConfidentialTransferMint extension...");
     let sig = token
         .create_mint(
             &mint_authority.pubkey(),
@@ -170,8 +184,10 @@ async fn run_inner(
         .await
         .context("create_mint")?;
     sigs.push(label("create-mint", sig));
+    info!("confidential_transfers: step 1/11 done — mint {} created", mint.pubkey());
 
     // ---- 2. Sender confidential account ----
+    info!("confidential_transfers: step 2/11 — creating + configuring sender confidential account...");
     let sender_token_account_kp = Keypair::new();
     let sender_token_account = sender_token_account_kp.pubkey();
     let sig = token
@@ -218,8 +234,13 @@ async fn run_inner(
         )
     })?;
     sigs.push(label_sig("sender-account-configure", sig));
+    info!(
+        "confidential_transfers: step 2/11 done — sender account {} configured",
+        sender_token_account
+    );
 
     // ---- 3. Recipient confidential account ----
+    info!("confidential_transfers: step 3/11 — creating + configuring recipient confidential account...");
     let recipient_token_account_kp = Keypair::new();
     let recipient_token_account = recipient_token_account_kp.pubkey();
     let sig = token
@@ -257,8 +278,16 @@ async fn run_inner(
     .await
     .context("configure recipient account (v5 proof)")?;
     sigs.push(label_sig("recipient-account-configure", sig));
+    info!(
+        "confidential_transfers: step 3/11 done — recipient account {} configured",
+        recipient_token_account
+    );
 
     // ---- 4. Mint public tokens to sender ----
+    info!(
+        "confidential_transfers: step 4/11 — minting {} public tokens to sender...",
+        MINT_AMOUNT
+    );
     let sig = token
         .mint_to(
             &sender_token_account,
@@ -269,8 +298,13 @@ async fn run_inner(
         .await
         .context("mint_to sender")?;
     sigs.push(label("mint-to-sender", sig));
+    info!("confidential_transfers: step 4/11 done — minted {} to sender", MINT_AMOUNT);
 
     // ---- 5. Deposit half to confidential balance ----
+    info!(
+        "confidential_transfers: step 5/11 — depositing {} from public to confidential balance...",
+        DEPOSIT_AMOUNT
+    );
     let sig = token
         .confidential_transfer_deposit(
             &sender_token_account,
@@ -282,8 +316,13 @@ async fn run_inner(
         .await
         .context("deposit to confidential balance")?;
     sigs.push(label("sender-deposit", sig));
+    info!(
+        "confidential_transfers: step 5/11 done — deposited {}",
+        DEPOSIT_AMOUNT
+    );
 
     // ---- 6. Apply pending balance (sender) ----
+    info!("confidential_transfers: step 6/11 — applying sender pending balance...");
     let sig = token
         .confidential_transfer_apply_pending_balance(
             &sender_token_account,
@@ -296,6 +335,7 @@ async fn run_inner(
         .await
         .context("apply pending balance (sender)")?;
     sigs.push(label("sender-apply-pending", sig));
+    info!("confidential_transfers: step 6/11 done — sender pending balance applied");
 
     // ---- 7. Confidential transfer (v5 proofs via context-state accounts) ----
     //
@@ -305,6 +345,10 @@ async fn run_inner(
     // account, then reference those accounts from a small Transfer
     // instruction. After the transfer settles we close the context-state
     // accounts to recover rent.
+    info!(
+        "confidential_transfers: step 7/11 — running confidential transfer of {} sender→recipient (3 proofs, multi-tx flow)...",
+        TRANSFER_AMOUNT
+    );
     let transfer_sig = run_confidential_transfer(
         &token,
         nonblocking_rpc.as_ref(),
@@ -322,8 +366,13 @@ async fn run_inner(
     )
     .await
     .context("confidential transfer")?;
+    info!(
+        "confidential_transfers: step 7/11 done — transfer tx {} confirmed",
+        transfer_sig
+    );
 
     // ---- 8. Apply pending balance (recipient) ----
+    info!("confidential_transfers: step 8/11 — applying recipient pending balance...");
     let sig = token
         .confidential_transfer_apply_pending_balance(
             &recipient_token_account,
@@ -336,8 +385,13 @@ async fn run_inner(
         .await
         .context("apply pending balance (recipient)")?;
     sigs.push(label("recipient-apply-pending", sig));
+    info!("confidential_transfers: step 8/11 done — recipient pending balance applied");
 
     // ---- 9. Withdraw to recipient public balance (v5 proofs via context-state accounts) ----
+    info!(
+        "confidential_transfers: step 9/11 — running confidential withdraw of {} to recipient public balance (2 proofs, multi-tx flow)...",
+        WITHDRAW_AMOUNT
+    );
     let _ = run_confidential_withdraw(
         &token,
         nonblocking_rpc.as_ref(),
@@ -352,8 +406,10 @@ async fn run_inner(
     )
     .await
     .context("withdraw from recipient confidential balance")?;
+    info!("confidential_transfers: step 9/11 done — withdraw of {} settled", WITHDRAW_AMOUNT);
 
     // ---- 10. Auditor decrypt assertion ----
+    info!("confidential_transfers: step 10/11 — auditor decrypting on-chain transfer ciphertext...");
     let decrypted = auditor_decrypt_transfer_amount(&ctx.rpc_client, &transfer_sig, &auditor)
         .context("auditor decrypt")?;
     if decrypted != TRANSFER_AMOUNT {
@@ -363,8 +419,13 @@ async fn run_inner(
             decrypted
         );
     }
+    info!(
+        "confidential_transfers: step 10/11 done — auditor decrypted transfer amount = {} (matches expected)",
+        decrypted
+    );
 
     // ---- 11. Balance assertions ----
+    info!("confidential_transfers: step 11/11 — verifying post-flow public balances...");
     let sender_state = token
         .get_account_info(&sender_token_account)
         .await
@@ -389,6 +450,10 @@ async fn run_inner(
             recipient_state.base.amount
         );
     }
+    info!(
+        "confidential_transfers: step 11/11 done — sender public={}, recipient public={}",
+        sender_state.base.amount, recipient_state.base.amount
+    );
 
     Ok(format!(
         "confidential transfer end-to-end verified: auditor decrypted {}, sender public {}, recipient public {}",
@@ -607,6 +672,7 @@ async fn run_confidential_transfer(
     sigs: &mut Vec<LabeledTransactionSignature>,
 ) -> Result<Signature> {
     // 1. Fetch current account state for the source.
+    info!("confidential_transfers/transfer: fetching source account state...");
     let acc_info = token
         .get_account_info(source_token_account)
         .await
@@ -632,6 +698,7 @@ async fn run_confidential_transfer(
     let auditor_v5 = proofs_v5::elgamal_pubkey_from_bytes_v5(&auditor_bytes)?;
 
     // 5. Generate the three transfer proofs with v5 transcripts.
+    info!("confidential_transfers/transfer: generating v5 proofs (equality + ciphertext-validity + range U128)...");
     let transfer_proofs = proofs_v5::transfer_proof_data_v5(
         &current_available_ct_v5,
         current_balance,
@@ -642,6 +709,7 @@ async fn run_confidential_transfer(
         &auditor_v5,
     )
     .context("generate v5 transfer proofs")?;
+    info!("confidential_transfers/transfer: v5 proofs generated and self-verified");
 
     // 6. Create three context-state accounts (one per proof). The
     // `split_account_creation_and_proof_verification = false` path
@@ -663,6 +731,7 @@ async fn run_confidential_transfer(
         .await
         .context("create equality context-state account")?;
     sigs.push(label("transfer-ctx-equality-create", sig));
+    info!("confidential_transfers/transfer: equality ctx-state created ({})", equality_kp.pubkey());
 
     let sig = token
         .confidential_transfer_create_context_state_account(
@@ -675,12 +744,17 @@ async fn run_confidential_transfer(
         .await
         .context("create ciphertext-validity context-state account")?;
     sigs.push(label("transfer-ctx-validity-create", sig));
+    info!("confidential_transfers/transfer: validity ctx-state created ({})", validity_kp.pubkey());
 
     // Range proof (U128 = ~1.4 KB) won't fit in a verify_proof tx even
     // with the split-create path. Use the record-account chunked-write
     // flow instead: write the proof into a record account, then
     // verify_proof_from_account.
     let range_record_kp = Keypair::new();
+    info!(
+        "confidential_transfers/transfer: writing range U128 proof to record account {} (chunked)...",
+        range_record_kp.pubkey()
+    );
     let _record_sigs = token
         .confidential_transfer_create_record_account(
             &range_record_kp.pubkey(),
@@ -697,6 +771,7 @@ async fn run_confidential_transfer(
         success: true,
         error: None,
     });
+    info!("confidential_transfers/transfer: range proof written to record account");
     let sig = token
         .confidential_transfer_create_context_state_account_from_record::<_, spl_token_2022::solana_zk_sdk::zk_elgamal_proof_program::proof_data::BatchedRangeProofU128Data, _>(
             &range_kp.pubkey(),
@@ -707,11 +782,13 @@ async fn run_confidential_transfer(
         .await
         .context("create range context-state account from record")?;
     sigs.push(label("transfer-ctx-range-create", sig));
+    info!("confidential_transfers/transfer: range ctx-state created ({})", range_kp.pubkey());
 
     // 7. Build TransferAccountInfo from the already-fetched state.
     let account_info = TransferAccountInfo::new(ct_acc);
 
     // 8. Submit the Transfer instruction referencing the three context accounts.
+    info!("confidential_transfers/transfer: submitting Transfer instruction referencing 3 ctx-state accounts...");
     let validity_with_ct = ProofAccountWithCiphertext {
         context_state_account: validity_kp.pubkey(),
         ciphertext_lo: transfer_proofs.auditor_ciphertext_lo,
@@ -746,8 +823,10 @@ async fn run_confidential_transfer(
         .context("submit Transfer instruction")?;
     let transfer_sig = extract_signature(&transfer_resp)?;
     sigs.push(label("confidential-transfer", transfer_resp));
+    info!("confidential_transfers/transfer: Transfer tx submitted: {}", transfer_sig);
 
     // 9. Close the context-state accounts, returning lamports to the payer.
+    info!("confidential_transfers/transfer: closing 3 ctx-state accounts + range record account...");
     for (label_name, ctx_kp) in [
         ("transfer-ctx-equality-close", &equality_kp),
         ("transfer-ctx-validity-close", &validity_kp),
@@ -776,6 +855,7 @@ async fn run_confidential_transfer(
         .await
         .context("close range record account")?;
     sigs.push(label("transfer-range-record-close", sig));
+    info!("confidential_transfers/transfer: rent reclaimed");
 
     // Suppress unused warning for `rpc` (kept in signature for symmetry
     // with run_confidential_withdraw, which uses it for direct sends).
@@ -803,6 +883,7 @@ async fn run_confidential_withdraw(
         .get_account_info(token_account)
         .await
         .context("fetch withdraw source account info")?;
+    info!("confidential_transfers/withdraw: source account state fetched");
     let ct_acc = acc_info
         .get_extension::<ConfidentialTransferAccount>()
         .context("get ConfidentialTransferAccount extension")?;
@@ -822,6 +903,7 @@ async fn run_confidential_withdraw(
         aes_v5,
     )
     .context("generate v5 withdraw proofs")?;
+    info!("confidential_transfers/withdraw: v5 proofs generated (equality + range U64)");
 
     let proof_authority = Keypair::new();
     let equality_kp = Keypair::new();
@@ -838,6 +920,7 @@ async fn run_confidential_withdraw(
         .await
         .context("create withdraw equality context-state account")?;
     sigs.push(label("withdraw-ctx-equality-create", sig));
+    info!("confidential_transfers/withdraw: equality ctx-state created ({})", equality_kp.pubkey());
 
     let sig = token
         .confidential_transfer_create_context_state_account(
@@ -850,6 +933,7 @@ async fn run_confidential_withdraw(
         .await
         .context("create withdraw range context-state account")?;
     sigs.push(label("withdraw-ctx-range-create", sig));
+    info!("confidential_transfers/withdraw: range ctx-state created ({})", range_kp.pubkey());
 
     let equality_account = equality_kp.pubkey();
     let range_account = range_kp.pubkey();
@@ -870,6 +954,7 @@ async fn run_confidential_withdraw(
         .await
         .context("submit Withdraw instruction")?;
     sigs.push(label("recipient-withdraw", withdraw_resp));
+    info!("confidential_transfers/withdraw: Withdraw tx submitted; closing ctx-state accounts...");
 
     for (label_name, ctx_kp) in [
         ("withdraw-ctx-equality-close", &equality_kp),
