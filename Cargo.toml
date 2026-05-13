@@ -34,3 +34,28 @@ solana-transaction = "3"
 ## Token crates
 spl-associated-token-account-interface = { version = "2.0.0", default-features = false }
 spl-token-interface = { version = "2.0.0", default-features = false }
+
+## Token-2022 + confidential transfer stack
+## Versions pinned to match Confidential-Balances-Sample as of 2026-05.
+## These pull a `solana-sdk` 3.x / `solana-zk-sdk` 4.x transitive tree
+## which must coexist with the explicit solana-* 3 crates above.
+bytemuck = "1.18"
+bs58 = "0.5"
+spl-token-2022 = "10.0.0"
+spl-token-client = "0.18.0"
+spl-associated-token-account = "8.0.0"
+spl-token-confidential-transfer-proof-generation = "0.5.1"
+spl-token-confidential-transfer-proof-extraction = "0.5.1"
+solana-transaction-status-client-types = "3.1.6"
+
+## Aliased zk-sdk v5 dep — coexists with the v4 transitive dep pulled in by
+## spl-token-2022 = 10.0.0. The agave 4.0.0-rc.0 testnet validator's on-chain
+## `ZkE1Gama1Proof…` program is built against zk-sdk 5.0.1 (different
+## Fiat–Shamir transcript construction from 4.x), so proofs MUST be generated
+## with 5.0.1 to verify on-chain. Generated proof bytes are Pod-layout
+## compatible with the v4 instruction types used by spl-token-2022's
+## builders — see `crates/tests/src/e2e/proofs_v5.rs`.
+solana-zk-sdk-v5 = { package = "solana-zk-sdk", version = "5.0.1" }
+## Curve25519 — pinned to the same major version v5 zk-sdk + spl-token-2022 use,
+## so a single Scalar type works across both.
+curve25519-dalek = "4"
