@@ -1,2 +1,2 @@
 pub mod confidential_transfers;
-mod proofs_v5;
+mod token_ops;

@@ -7,6 +7,7 @@ edition = "2021"
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 log = { workspace = true }
+tokio = { workspace = true }
 
 ## Solana Crates
 solana-keypair = { workspace = true }
@@ -27,12 +28,16 @@ spl-token-interface = { workspace = true }
 bytemuck = { workspace = true }
 bs58 = { workspace = true }
 spl-token-2022 = { workspace = true }
-spl-token-client = { workspace = true }
+spl-token-2022-interface = { workspace = true }
 spl-associated-token-account = { workspace = true }
+spl-associated-token-account-client = { workspace = true }
 spl-token-confidential-transfer-proof-generation = { workspace = true }
 spl-token-confidential-transfer-proof-extraction = { workspace = true }
+solana-zk-elgamal-proof-interface = { workspace = true }
+solana-zk-sdk-pod = { workspace = true }
+solana-zk-sdk = { workspace = true }
 solana-transaction-status-client-types = { workspace = true }
-solana-zk-sdk-v5 = { workspace = true }
+spl-record = { workspace = true }
 curve25519-dalek = { workspace = true }
 
 ## Workspace Crates
