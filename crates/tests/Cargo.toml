@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
+log = { workspace = true }
+tokio = { workspace = true }
 
 ## Solana Crates
 solana-keypair = { workspace = true }
@@ -21,6 +23,22 @@ solana-system-interface = { workspace = true, features = ["bincode"]}
 ## Token Crates
 spl-associated-token-account-interface = { workspace = true }
 spl-token-interface = { workspace = true }
+
+## Token-2022 + confidential transfer stack (e2e/confidential_transfers)
+bytemuck = { workspace = true }
+bs58 = { workspace = true }
+spl-token-2022 = { workspace = true }
+spl-token-2022-interface = { workspace = true }
+spl-associated-token-account = { workspace = true }
+spl-associated-token-account-client = { workspace = true }
+spl-token-confidential-transfer-proof-generation = { workspace = true }
+spl-token-confidential-transfer-proof-extraction = { workspace = true }
+solana-zk-elgamal-proof-interface = { workspace = true }
+solana-zk-sdk-pod = { workspace = true }
+solana-zk-sdk = { workspace = true }
+solana-transaction-status-client-types = { workspace = true }
+spl-record = { workspace = true }
+curve25519-dalek = { workspace = true }
 
 ## Workspace Crates
 test-common = { path = "../test-common" }

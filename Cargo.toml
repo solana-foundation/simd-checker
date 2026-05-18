@@ -34,3 +34,26 @@ solana-transaction = "3"
 ## Token crates
 spl-associated-token-account-interface = { version = "2.0.0", default-features = false }
 spl-token-interface = { version = "2.0.0", default-features = false }
+
+## Token-2022 + confidential transfer stack (v11 — single zk-sdk lineage at 6.x)
+## spl-token-client is intentionally NOT used: it hard-pins spl-token-2022 = ^10.
+## All orchestration (mint/account create, configure, deposit, transfer, withdraw,
+## context-state + record accounts) is hand-rolled in crates/tests/src/e2e/token_ops.rs
+## using the spl-token-2022 11.0.0 instruction builders directly.
+bytemuck = "1.18"
+bs58 = "0.5"
+spl-token-2022 = "11.0.0"
+spl-token-2022-interface = "3.0.0"
+spl-associated-token-account = "8.0.0"
+spl-associated-token-account-client = "2.0.0"
+spl-token-confidential-transfer-proof-generation = "0.6.0"
+spl-token-confidential-transfer-proof-extraction = "0.6.0"
+solana-zk-elgamal-proof-interface = "0.1.2"
+solana-zk-sdk-pod = "0.1.1"
+## solana-zk-sdk = 6.0.1 is the proof-generation crate's pin; we expose it
+## explicitly because tests need ElGamalKeypair / AeKey / proof_data types.
+solana-zk-sdk = "6.0.1"
+solana-transaction-status-client-types = "3.1.6"
+spl-record = "0.4"
+## Curve25519 — matches the major version used by zk-sdk 6.x.
+curve25519-dalek = "4"

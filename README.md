@@ -244,3 +244,9 @@ Outcomes for an E2E check:
 | 0387 | BLS Pubkey management in vote account         | -      |
 | 0406 | Maximum instruction accounts                  | -      |
 | 0444 | Relax program data account check in migration | -      |
+
+### E2E Checks
+
+| Check                  | Description                                       | testnet/devnet/mainnet | localnet |
+| ---------------------- | ------------------------------------------------- | ---------------------- | -------- |
+| confidential_transfers | token-2022 ConfidentialTransfer + ZK ElGamal proof program end-to-end | yes | skipped (litesvm bundle lacks zk-ops) |

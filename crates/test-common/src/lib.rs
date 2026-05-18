@@ -88,7 +88,7 @@ pub async fn start_surfnet(
     features_to_enable: Vec<Pubkey>,
     features_to_disable: Vec<Pubkey>,
 ) -> Result<SurfnetHandle> {
-    start_surfnet_inner(features_to_enable, features_to_disable, false).await
+    start_surfnet_inner(features_to_enable, features_to_disable, true).await
 }
 
 /// Like [`start_surfnet`] but with an upstream RPC URL set so that the
@@ -99,7 +99,7 @@ pub async fn start_surfnet_with_upstream(
     features_to_enable: Vec<Pubkey>,
     features_to_disable: Vec<Pubkey>,
 ) -> Result<SurfnetHandle> {
-    start_surfnet_inner(features_to_enable, features_to_disable, true).await
+    start_surfnet_inner(features_to_enable, features_to_disable, false).await
 }
 
 async fn start_surfnet_inner(
@@ -275,11 +275,7 @@ impl TestOutcome {
             TestOutcome::Pass { message, .. } => message.clone(),
             TestOutcome::Fail { message, .. } => message.clone(),
             TestOutcome::Skip { reason } => reason.clone(),
-            TestOutcome::Pending {
-                unmet,
-                message,
-                ..
-            } => match message {
+            TestOutcome::Pending { unmet, message, .. } => match message {
                 Some(m) => format!("{} requirement(s) unmet; ran anyway: {m}", unmet.len()),
                 None => format!("{} requirement(s) unmet", unmet.len()),
             },
