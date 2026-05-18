@@ -777,16 +777,44 @@ async fn run_confidential_withdraw(
         equality_kp.pubkey()
     );
 
-    let sig = token_ops::create_context_state_account(
+    // Range proof (U64) — same record-account pattern the transfer flow uses
+    // for its U128 range proof. `BatchedRangeProofU64Data` is
+    // BatchedRangeProofContext (~264 B) + PodRangeProofU64 (672 B) ≈ 936 B
+    // inline, which combined with `create_account` + a second signer + tx
+    // overhead exceeds the 1232-byte raw VersionedTransaction limit. Routing
+    // through `spl_record` + `verify_proof_from_account` keeps every on-the-
+    // wire tx well under that cap.
+    let range_record_kp = Keypair::new();
+    info!(
+        "confidential_transfers/withdraw: writing range U64 proof to record account {} (chunked)...",
+        range_record_kp.pubkey()
+    );
+    let range_proof_bytes = bytemuck::bytes_of(&proofs.range_proof_data);
+    let record_results = token_ops::create_record_account(
+        rpc,
+        payer,
+        &range_record_kp,
+        &proof_authority,
+        range_proof_bytes,
+    )
+    .await
+    .context("create withdraw range record account")?;
+    for (label, sig) in &record_results {
+        sigs.push(label_sig(&format!("withdraw-range-{label}"), *sig));
+    }
+    info!("confidential_transfers/withdraw: range proof written to record account");
+
+    let sig = token_ops::create_context_state_account_from_record::<BatchedRangeProofContext>(
         rpc,
         payer,
         &range_kp,
         &proof_authority.pubkey(),
-        &proofs.range_proof_data,
+        &range_record_kp.pubkey(),
+        spl_record::state::RecordData::WRITABLE_START_INDEX as u32,
         ProofInstruction::VerifyBatchedRangeProofU64,
     )
     .await
-    .context("create withdraw range context-state account")?;
+    .context("create withdraw range context-state account from record")?;
     sigs.push(label_sig("withdraw-ctx-range-create", sig));
     info!(
         "confidential_transfers/withdraw: range ctx-state created ({})",
@@ -817,7 +845,7 @@ async fn run_confidential_withdraw(
         .context("submit Withdraw instruction")?;
     sigs.push(label_sig("recipient-withdraw", withdraw_sig));
     info!(
-        "confidential_transfers/withdraw: Withdraw tx submitted: {}; closing ctx-state accounts...",
+        "confidential_transfers/withdraw: Withdraw tx submitted: {}; closing ctx-state accounts + record account...",
         withdraw_sig
     );
 
@@ -836,6 +864,17 @@ async fn run_confidential_withdraw(
         .with_context(|| format!("close withdraw context-state account {}", ctx_kp.pubkey()))?;
         sigs.push(label_sig(label_name, sig));
     }
+    let sig = token_ops::close_record_account(
+        rpc,
+        payer,
+        &proof_authority,
+        &range_record_kp.pubkey(),
+        &payer.pubkey(),
+    )
+    .await
+    .context("close withdraw range record account")?;
+    sigs.push(label_sig("withdraw-range-record-close", sig));
+    info!("confidential_transfers/withdraw: rent reclaimed");
 
     Ok(())
 }

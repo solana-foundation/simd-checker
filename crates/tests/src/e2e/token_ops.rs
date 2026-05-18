@@ -330,6 +330,22 @@ pub async fn apply_pending_balance(
 
 /// Create a context-state account and verify a proof into it in one tx.
 /// Used for proofs small enough to fit (equality, validity).
+///
+/// **Size ceiling.** This helper packs `system_instruction::create_account`
+/// AND `ProofInstruction::encode_verify_proof(...)` (with the full proof data
+/// inlined) into a single transaction, plus a second required signer (the new
+/// context-state keypair). The 1232-byte raw `VersionedTransaction` limit
+/// leaves room for at most ~700 bytes of inline proof data after accounting
+/// for tx headers, account keys, blockhash, signatures, and the create-account
+/// ix. Anything larger — notably any batched range proof (U64 ≈ 936 B inline,
+/// U128 ≈ 1.4 KB inline) — MUST be routed through `create_record_account` +
+/// `create_context_state_account_from_record` instead. Note that "U64" vs.
+/// "U128" in the name refers to the total committed-value bit length, not the
+/// proof byte size: U64 still includes the same ~264-byte
+/// `BatchedRangeProofContext` and a 672-byte `PodRangeProofU64`, which is over
+/// the inline budget. See `run_confidential_transfer` and
+/// `run_confidential_withdraw` in `confidential_transfers.rs` for the
+/// record-account pattern.
 pub async fn create_context_state_account<ZK, U>(
     rpc: &RpcClient,
     payer: &Keypair,
